@@ -3,6 +3,7 @@ import { openSettings } from './settings';
 import { mountLibrary, loadDefaults } from './panes/library';
 import { mountCenter } from './panes/center';
 import { mountInspector } from './panes/inspector';
+import { mountDialogue } from './panes/dialogue';
 import { currentShow } from './state';
 import { effect } from '@preact/signals-core';
 
@@ -22,10 +23,13 @@ root.innerHTML = `
         Settings
       </button>
     </header>
-    <div class="flex-1 grid grid-cols-[260px_1fr_300px] overflow-hidden">
+    <div class="flex-1 grid grid-cols-[260px_1fr_340px] overflow-hidden">
       <aside id="left-pane" class="border-r border-neutral-800 bg-neutral-900/40 overflow-hidden"></aside>
       <section id="center-pane" class="overflow-hidden"></section>
-      <aside id="right-pane" class="border-l border-neutral-800 bg-neutral-900/40 overflow-hidden"></aside>
+      <aside id="right-pane" class="border-l border-neutral-800 bg-neutral-900/40 overflow-hidden flex flex-col">
+        <div id="inspector" class="border-b border-neutral-800 max-h-[40%] overflow-hidden"></div>
+        <div id="dialogue" class="flex-1 overflow-hidden"></div>
+      </aside>
     </div>
   </main>
 `;
@@ -41,6 +45,7 @@ effect(() => {
 
 mountLibrary(document.getElementById('left-pane')!);
 mountCenter(document.getElementById('center-pane')!);
-mountInspector(document.getElementById('right-pane')!);
+mountInspector(document.getElementById('inspector')!);
+mountDialogue(document.getElementById('dialogue')!);
 
 void loadDefaults();
