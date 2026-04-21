@@ -23,13 +23,20 @@ const editorStage = signal<HTMLDivElement | null>(null);
 // One effect, never nested inside another. Watches currentShow + selection +
 // editorStage; bails out cleanly when the editor isn't active or while the
 // user is mid-drag.
+//
+// CRITICAL: read every tracked signal up front, *before* the early-returns.
+// signals-core re-tracks dependencies on every run; an early return that
+// happens before reading currentShow drops that subscription, so the next
+// addCharacter / pickScene / etc. won't trigger a re-render. This was the
+// "click second avatar, nothing appears" bug.
 effect(() => {
   const stage = editorStage.value;
+  const show = currentShow.value;
+  const selected = selection.value;
+
   if (!stage) return;
   if (interaction) return;
 
-  const show = currentShow.value;
-  const selected = selection.value;
   stage.replaceChildren();
 
   if (show.scene) {
@@ -255,11 +262,16 @@ function attachDrag(
     }
     slot.style.cursor = 'grab';
     interaction = null;
+    // Use the live drag values directly. (Earlier `lastX || c.x` was wrong
+    // because 0 is a valid clamped position — the leftmost edge — and
+    // truthiness checks turned a legitimate 0 into "no change".)
+    const x = lastX;
+    const y = lastY;
     mutate((s) => ({
       ...s,
       characters: s.characters.map((c) =>
         c.id === characterId
-          ? { ...c, x: lastX, y: lastY, z: Math.round(lastY * 1000) }
+          ? { ...c, x, y, z: Math.round(y * 1000) }
           : c,
       ),
     }));
