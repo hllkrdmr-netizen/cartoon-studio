@@ -7,12 +7,80 @@ const MIME = 'application/x-agentpark-asset';
 type Tab = 'editor' | 'preview';
 const tab = signal<Tab>('editor');
 
-// Module-level so the editor effect can see when a drag/resize is in flight
+// Module-level: lets the render effect see when a drag/resize is in flight
 // and skip the DOM rebuild that would tear down the captured slot.
 let interaction:
   | { kind: 'drag'; characterId: string }
   | { kind: 'resize'; characterId: string }
   | null = null;
+
+// The active stage element. Updating this signal triggers a re-render in the
+// module-level editor effect. mountEditor sets it; mountPreview clears it.
+const editorStage = signal<HTMLDivElement | null>(null);
+
+// ---- Single module-level render effect ----
+//
+// One effect, never nested inside another. Watches currentShow + selection +
+// editorStage; bails out cleanly when the editor isn't active or while the
+// user is mid-drag.
+effect(() => {
+  const stage = editorStage.value;
+  if (!stage) return;
+  if (interaction) return;
+
+  const show = currentShow.value;
+  const selected = selection.value;
+  stage.replaceChildren();
+
+  if (show.scene) {
+    const bg = document.createElement('img');
+    bg.src = svgToDataUri(show.scene.svg);
+    bg.className =
+      'absolute inset-0 w-full h-full object-cover pointer-events-none';
+    stage.appendChild(bg);
+  } else {
+    const empty = document.createElement('div');
+    empty.className =
+      'absolute inset-0 flex items-center justify-center text-xs text-neutral-600 pointer-events-none';
+    empty.textContent = 'Drop or click a scene from the library';
+    stage.appendChild(empty);
+  }
+
+  // Sort by y so characters lower on stage render on top — naive depth.
+  const sorted = [...show.characters].sort((a, b) => a.y - b.y);
+  for (const c of sorted) {
+    const isSelected = selected.type === 'character' && selected.id === c.id;
+    const slot = document.createElement('div');
+    slot.className = `absolute select-none ${isSelected ? 'outline outline-2 outline-emerald-400/80' : ''}`;
+    slot.style.left = `${c.x * 100}%`;
+    slot.style.top = `${c.y * 100}%`;
+    slot.style.transform = `translate(-50%, -100%) scale(${c.scale})`;
+    slot.style.transformOrigin = 'bottom center';
+    slot.style.width = '20%';
+    slot.style.touchAction = 'none';
+    slot.style.cursor = 'grab';
+    slot.dataset.characterId = c.id;
+
+    const img = document.createElement('img');
+    img.src = svgToDataUri(c.svg);
+    img.className = 'w-full h-auto pointer-events-none';
+    img.draggable = false;
+    slot.appendChild(img);
+
+    attachDrag(slot, stage, c.id);
+
+    if (isSelected) {
+      const handle = document.createElement('div');
+      handle.className =
+        'absolute -bottom-1 -right-1 w-3 h-3 rounded-sm bg-emerald-400 cursor-nwse-resize';
+      handle.style.touchAction = 'none';
+      attachResize(handle, slot, stage, c.id);
+      slot.appendChild(handle);
+    }
+
+    stage.appendChild(slot);
+  }
+});
 
 export function mountCenter(root: HTMLElement): void {
   root.innerHTML = `
@@ -37,6 +105,9 @@ export function mountCenter(root: HTMLElement): void {
   const body = root.querySelector<HTMLDivElement>('#tab-body')!;
   const hint = root.querySelector<HTMLElement>('#hint')!;
 
+  // Tab effect: just swaps body markup and toggles the editorStage signal.
+  // Crucially, no nested effect() inside — that's a memory leak in
+  // signals-core and was causing the "black screen on tab switch" bug.
   effect(() => {
     root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
       const isActive = b.dataset.tab === tab.value;
@@ -44,7 +115,7 @@ export function mountCenter(root: HTMLElement): void {
     });
     if (tab.value === 'editor') {
       hint.textContent =
-        'drag tiles from the library · drag characters to reposition · corner-handle to scale';
+        'drag tiles from the library · drag a character to reposition · corner-handle to scale';
       mountEditor(body);
     } else {
       hint.textContent = 'audio + lip sync runs from generated lines';
@@ -56,6 +127,11 @@ export function mountCenter(root: HTMLElement): void {
 // ---- Editor (drag/place/resize stage) ----
 
 function mountEditor(body: HTMLElement): void {
+  // Defensive reset — if a prior interaction never fired pointerup (e.g. the
+  // user switched tabs mid-drag), the flag would remain set and the render
+  // effect below would never run.
+  interaction = null;
+
   body.innerHTML = `
     <div class="h-full flex items-center justify-center p-6">
       <div id="preview-stage" class="relative bg-neutral-900 rounded shadow-inner aspect-video w-full max-w-3xl overflow-hidden"></div>
@@ -74,7 +150,9 @@ function mountEditor(body: HTMLElement): void {
     if (!id) return;
     ev.preventDefault();
     const defaults = await window.api.defaultsList();
-    const asset = defaults.find((a) => a.id === id);
+    const userAssets = await window.api.userAssetsList();
+    const asset =
+      defaults.find((a) => a.id === id) ?? userAssets.find((a) => a.id === id);
     if (!asset) return;
     const rect = stage.getBoundingClientRect();
     const x = clamp01((ev.clientX - rect.left) / rect.width);
@@ -82,64 +160,8 @@ function mountEditor(body: HTMLElement): void {
     addAsset(asset, x, y);
   });
 
-  effect(() => {
-    if (tab.value !== 'editor') return; // skip if hidden
-    // Mid-interaction the slot DOM is mutated directly; rebuilding here
-    // would orphan the captured pointer and stop the drag dead.
-    if (interaction) return;
-    const show = currentShow.value;
-    const selected = selection.value;
-    stage.replaceChildren();
-
-    if (show.scene) {
-      const bg = document.createElement('img');
-      bg.src = svgToDataUri(show.scene.svg);
-      bg.className =
-        'absolute inset-0 w-full h-full object-cover pointer-events-none';
-      stage.appendChild(bg);
-    } else {
-      const empty = document.createElement('div');
-      empty.className =
-        'absolute inset-0 flex items-center justify-center text-xs text-neutral-600 pointer-events-none';
-      empty.textContent = 'Drop or click a scene from the library';
-      stage.appendChild(empty);
-    }
-
-    const sorted = [...show.characters].sort((a, b) => a.y - b.y);
-    for (const c of sorted) {
-      const isSelected =
-        selected.type === 'character' && selected.id === c.id;
-      const slot = document.createElement('div');
-      slot.className = `absolute select-none ${isSelected ? 'outline outline-2 outline-emerald-400/80' : ''}`;
-      slot.style.left = `${c.x * 100}%`;
-      slot.style.top = `${c.y * 100}%`;
-      slot.style.transform = `translate(-50%, -100%) scale(${c.scale})`;
-      slot.style.transformOrigin = 'bottom center';
-      slot.style.width = '20%';
-      slot.style.touchAction = 'none';
-      slot.style.cursor = 'grab';
-      slot.dataset.characterId = c.id;
-
-      const img = document.createElement('img');
-      img.src = svgToDataUri(c.svg);
-      img.className = 'w-full h-auto pointer-events-none';
-      img.draggable = false;
-      slot.appendChild(img);
-
-      attachDrag(slot, stage, c.id);
-
-      if (isSelected) {
-        const handle = document.createElement('div');
-        handle.className =
-          'absolute -bottom-1 -right-1 w-3 h-3 rounded-sm bg-emerald-400 cursor-nwse-resize';
-        handle.style.touchAction = 'none';
-        attachResize(handle, slot, stage, c.id);
-        slot.appendChild(handle);
-      }
-
-      stage.appendChild(slot);
-    }
-  });
+  // Triggers the module-level render effect.
+  editorStage.value = stage;
 }
 
 function clamp01(n: number): number {
@@ -183,14 +205,28 @@ function attachDrag(
   stage: HTMLElement,
   characterId: string,
 ): void {
+  // Grab offset: where the user clicked relative to the character's anchor
+  // (its bottom-center, where x/y in state lives). Without this, the character
+  // snaps so its feet are under the cursor on the first move and shoots away.
+  let grabDx = 0;
+  let grabDy = 0;
   let lastX = 0;
   let lastY = 0;
 
   slot.addEventListener('pointerdown', (ev) => {
     ev.preventDefault();
-    // Set the interaction flag BEFORE flipping the selection signal so the
-    // editor effect (which subscribes to selection) bails out instead of
-    // replacing this slot mid-drag.
+    ev.stopPropagation();
+    const c = currentShow.value.characters.find((x) => x.id === characterId);
+    if (!c) return;
+    const rect = stage.getBoundingClientRect();
+    const cursorX = (ev.clientX - rect.left) / rect.width;
+    const cursorY = (ev.clientY - rect.top) / rect.height;
+    grabDx = cursorX - c.x;
+    grabDy = cursorY - c.y;
+    lastX = c.x;
+    lastY = c.y;
+    // Set interaction BEFORE flipping selection — selection is a tracked
+    // signal and the render effect would otherwise replace this slot.
     interaction = { kind: 'drag', characterId };
     selection.value = { type: 'character', id: characterId };
     slot.setPointerCapture(ev.pointerId);
@@ -198,32 +234,38 @@ function attachDrag(
   });
 
   slot.addEventListener('pointermove', (ev) => {
-    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId) return;
+    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId)
+      return;
     const rect = stage.getBoundingClientRect();
-    lastX = clamp01((ev.clientX - rect.left) / rect.width);
-    lastY = clamp01((ev.clientY - rect.top) / rect.height);
-    // Update the live DOM directly — bypass the store so the effect doesn't
-    // re-render and orphan our captured slot. We commit on pointerup.
+    const cursorX = (ev.clientX - rect.left) / rect.width;
+    const cursorY = (ev.clientY - rect.top) / rect.height;
+    lastX = clamp01(cursorX - grabDx);
+    lastY = clamp01(cursorY - grabDy);
+    // Live DOM update — bypass the store so the render effect doesn't run
+    // and tear down the captured slot. Commit on pointerup.
     slot.style.left = `${lastX * 100}%`;
     slot.style.top = `${lastY * 100}%`;
   });
 
-  slot.addEventListener('pointerup', (ev) => {
-    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId) return;
-    slot.releasePointerCapture(ev.pointerId);
+  const finish = (ev: PointerEvent) => {
+    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId)
+      return;
+    if (slot.hasPointerCapture(ev.pointerId)) {
+      slot.releasePointerCapture(ev.pointerId);
+    }
     slot.style.cursor = 'grab';
     interaction = null;
-    // Now commit. The effect will run, replace_children, and re-render with
-    // the new position — visually identical to what's already on screen.
     mutate((s) => ({
       ...s,
       characters: s.characters.map((c) =>
         c.id === characterId
-          ? { ...c, x: lastX || c.x, y: lastY || c.y, z: Math.round((lastY || c.y) * 1000) }
+          ? { ...c, x: lastX, y: lastY, z: Math.round(lastY * 1000) }
           : c,
       ),
     }));
-  });
+  };
+  slot.addEventListener('pointerup', finish);
+  slot.addEventListener('pointercancel', finish);
 }
 
 function attachResize(
@@ -251,7 +293,11 @@ function attachResize(
   });
 
   handle.addEventListener('pointermove', (ev) => {
-    if (interaction?.kind !== 'resize' || interaction.characterId !== characterId) return;
+    if (
+      interaction?.kind !== 'resize' ||
+      interaction.characterId !== characterId
+    )
+      return;
     const slotRect = slot.getBoundingClientRect();
     const cx = slotRect.left + slotRect.width / 2;
     const cy = slotRect.bottom;
@@ -259,17 +305,18 @@ function attachResize(
     if (startDist <= 0) return;
     const ratio = dist / startDist;
     lastScale = clamp(startScale * ratio, 0.2, 3);
-    // Live DOM update; preserve the existing left/top so the slot stays
-    // anchored at its current position during the resize.
-    const c = currentShow.value.characters.find((x) => x.id === characterId);
-    if (c) {
-      slot.style.transform = `translate(-50%, -100%) scale(${lastScale})`;
-    }
+    slot.style.transform = `translate(-50%, -100%) scale(${lastScale})`;
   });
 
-  handle.addEventListener('pointerup', (ev) => {
-    if (interaction?.kind !== 'resize' || interaction.characterId !== characterId) return;
-    handle.releasePointerCapture(ev.pointerId);
+  const finish = (ev: PointerEvent) => {
+    if (
+      interaction?.kind !== 'resize' ||
+      interaction.characterId !== characterId
+    )
+      return;
+    if (handle.hasPointerCapture(ev.pointerId)) {
+      handle.releasePointerCapture(ev.pointerId);
+    }
     interaction = null;
     mutate((s) => ({
       ...s,
@@ -277,7 +324,9 @@ function attachResize(
         c.id === characterId ? { ...c, scale: lastScale } : c,
       ),
     }));
-  });
+  };
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
 }
 
 // ---- Preview (iframe with composition + controls) ----
@@ -285,6 +334,10 @@ function attachResize(
 let lastBuiltShowSig = '';
 
 async function mountPreview(body: HTMLElement): Promise<void> {
+  // Detach the editor stage so the render effect bails when characters
+  // change while we're on the Preview tab.
+  editorStage.value = null;
+
   body.innerHTML = `
     <div class="h-full flex flex-col">
       <div class="flex-1 flex items-center justify-center p-6">
@@ -309,7 +362,15 @@ async function mountPreview(body: HTMLElement): Promise<void> {
   const iframe = body.querySelector<HTMLIFrameElement>('#preview-iframe')!;
   const status = body.querySelector<HTMLElement>('#status')!;
   const player = () =>
-    (iframe.contentWindow as unknown as { __player?: { play: () => void; pause: () => void; seek: (t: number) => void } } | null)?.__player ?? null;
+    (
+      iframe.contentWindow as unknown as {
+        __player?: {
+          play: () => void;
+          pause: () => void;
+          seek: (t: number) => void;
+        };
+      } | null
+    )?.__player ?? null;
 
   const show = currentShow.value;
   const sig = JSON.stringify(show);
@@ -330,14 +391,15 @@ async function mountPreview(body: HTMLElement): Promise<void> {
       return;
     }
   }
-  const url = (await window.api.previewUrl(show.id)).replace(
-    /composition\.html$/,
-    'index.html',
-  );
+  const url = await window.api.previewUrl(show.id);
   iframe.src = url;
 
-  body.querySelector('#play')?.addEventListener('click', () => player()?.play());
-  body.querySelector('#pause')?.addEventListener('click', () => player()?.pause());
+  body
+    .querySelector('#play')
+    ?.addEventListener('click', () => player()?.play());
+  body
+    .querySelector('#pause')
+    ?.addEventListener('click', () => player()?.pause());
   body.querySelector('#restart')?.addEventListener('click', () => {
     player()?.seek(0);
     player()?.play();
@@ -353,10 +415,10 @@ async function mountPreview(body: HTMLElement): Promise<void> {
       if (p.type === 'start') status.textContent = `rendering → ${p.outputPath}`;
       else if (p.type === 'log') status.textContent = p.line.slice(0, 200);
       else if (p.type === 'done') status.textContent = `done → ${p.outputPath}`;
-      else if (p.type === 'error') status.textContent = `render failed: ${p.message}`;
+      else if (p.type === 'error')
+        status.textContent = `render failed: ${p.message}`;
     });
     try {
-      // Force a rebuild before render so the on-disk index.html reflects current state.
       await window.api.buildComposition(currentShow.value.id);
       await window.api.renderShow(currentShow.value.id);
     } catch (err) {
