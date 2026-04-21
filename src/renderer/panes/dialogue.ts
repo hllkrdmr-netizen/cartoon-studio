@@ -12,6 +12,9 @@ export function mountDialogue(root: HTMLElement): void {
         <div class="p-3 border-b border-neutral-800 flex items-center justify-between gap-2">
           <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Dialogue</h2>
           <div class="flex gap-1">
+            <button id="write-llm" class="text-xs rounded border border-fuchsia-700/60 hover:border-fuchsia-500 text-fuchsia-300 px-2 py-1" title="Write dialogue with LLM">
+              ✨ Write
+            </button>
             <button id="generate-all" class="text-xs rounded border border-neutral-700 hover:border-neutral-500 px-2 py-1">
               Generate all
             </button>
