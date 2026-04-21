@@ -8,6 +8,8 @@ import { saveShow, loadShow, listShows, deleteShow } from '../showStore';
 import { generateLine } from '../tts';
 import { buildComposition } from '../composition';
 import { previewUrl } from '../previewServer';
+import { listUserAssets, saveUserAsset } from '../userAssets';
+import { generateCharacter, generateScene } from '../recraft';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, () => 'pong');
@@ -21,6 +23,21 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IPC_CHANNELS.defaultsList, () => listDefaults());
+  ipcMain.handle(IPC_CHANNELS.userAssetsList, () => listUserAssets());
+  ipcMain.handle(
+    IPC_CHANNELS.generateCharacter,
+    async (_e, prompt: string, name: string) => {
+      const svg = await generateCharacter(prompt);
+      return saveUserAsset('character', name, svg);
+    },
+  );
+  ipcMain.handle(
+    IPC_CHANNELS.generateScene,
+    async (_e, prompt: string, name: string) => {
+      const svg = await generateScene(prompt);
+      return saveUserAsset('scene', name, svg);
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.showSave, (_e, show: Show) => saveShow(show));
   ipcMain.handle(IPC_CHANNELS.showLoad, (_e, id: string) => loadShow(id));

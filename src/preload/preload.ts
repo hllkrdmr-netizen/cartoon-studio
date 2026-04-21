@@ -11,6 +11,11 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.settingsDelete, id),
 
   defaultsList: () => ipcRenderer.invoke(IPC_CHANNELS.defaultsList),
+  userAssetsList: () => ipcRenderer.invoke(IPC_CHANNELS.userAssetsList),
+  generateCharacter: (prompt, name) =>
+    ipcRenderer.invoke(IPC_CHANNELS.generateCharacter, prompt, name),
+  generateScene: (prompt, name) =>
+    ipcRenderer.invoke(IPC_CHANNELS.generateScene, prompt, name),
 
   showSave: (show) => ipcRenderer.invoke(IPC_CHANNELS.showSave, show),
   showLoad: (id) => ipcRenderer.invoke(IPC_CHANNELS.showLoad, id),

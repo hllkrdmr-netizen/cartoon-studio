@@ -20,6 +20,9 @@ export type IpcApi = {
   settingsDelete: (id: ApiKeyId) => Promise<void>;
 
   defaultsList: () => Promise<DefaultAsset[]>;
+  userAssetsList: () => Promise<DefaultAsset[]>;
+  generateCharacter: (prompt: string, name: string) => Promise<DefaultAsset>;
+  generateScene: (prompt: string, name: string) => Promise<DefaultAsset>;
 
   showSave: (show: Show) => Promise<Show>;
   showLoad: (id: string) => Promise<Show>;
@@ -58,6 +61,9 @@ export const IPC_CHANNELS = {
   settingsSet: 'settings:set',
   settingsDelete: 'settings:delete',
   defaultsList: 'defaults:list',
+  userAssetsList: 'assets:list',
+  generateCharacter: 'assets:generateCharacter',
+  generateScene: 'assets:generateScene',
   showSave: 'show:save',
   showLoad: 'show:load',
   showList: 'show:list',

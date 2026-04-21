@@ -4,14 +4,20 @@ import { svgToDataUri, uid } from '../util';
 import { currentShow, mutate } from '../state';
 
 export const defaults = signal<DefaultAsset[]>([]);
+export const userAssets = signal<DefaultAsset[]>([]);
 
 export async function loadDefaults(): Promise<void> {
-  defaults.value = await window.api.defaultsList();
+  const [d, u] = await Promise.all([
+    window.api.defaultsList(),
+    window.api.userAssetsList(),
+  ]);
+  defaults.value = d;
+  userAssets.value = u;
 }
 
 export function mountLibrary(root: HTMLElement): void {
   effect(() => {
-    const items = defaults.value;
+    const items = [...defaults.value, ...userAssets.value];
     const characters = items.filter((a) => a.type === 'character');
     const scenes = items.filter((a) => a.type === 'scene');
 
@@ -22,11 +28,17 @@ export function mountLibrary(root: HTMLElement): void {
         </div>
         <div class="flex-1 overflow-y-auto p-3 space-y-4">
           <section>
-            <h3 class="text-xs uppercase tracking-wide text-neutral-500 mb-2">Scenes</h3>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-xs uppercase tracking-wide text-neutral-500">Scenes</h3>
+              <button data-generate="scene" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+            </div>
             <div class="grid grid-cols-2 gap-2" data-section="scenes"></div>
           </section>
           <section>
-            <h3 class="text-xs uppercase tracking-wide text-neutral-500 mb-2">Characters</h3>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-xs uppercase tracking-wide text-neutral-500">Characters</h3>
+              <button data-generate="character" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+            </div>
             <div class="grid grid-cols-2 gap-2" data-section="characters"></div>
           </section>
         </div>
@@ -60,7 +72,36 @@ export function mountLibrary(root: HTMLElement): void {
       '[data-section="characters"]',
     )!;
     characters.forEach((c) => charRoot.appendChild(renderTile(c)));
+
+    root
+      .querySelector<HTMLButtonElement>('[data-generate="character"]')
+      ?.addEventListener('click', () => promptAndGenerate('character'));
+    root
+      .querySelector<HTMLButtonElement>('[data-generate="scene"]')
+      ?.addEventListener('click', () => promptAndGenerate('scene'));
   });
+}
+
+async function promptAndGenerate(type: 'character' | 'scene'): Promise<void> {
+  const prompt = window.prompt(
+    type === 'character'
+      ? 'Describe a character (e.g. "grumpy barista in a hoodie"):'
+      : 'Describe a scene (e.g. "snowy bus stop at dusk"):',
+  );
+  if (!prompt) return;
+  const name = window.prompt('Name this asset:', prompt.split(' ').slice(0, 3).join(' '));
+  if (!name) return;
+  try {
+    if (type === 'character') {
+      const a = await window.api.generateCharacter(prompt, name);
+      userAssets.value = [...userAssets.value, a];
+    } else {
+      const a = await window.api.generateScene(prompt, name);
+      userAssets.value = [...userAssets.value, a];
+    }
+  } catch (err) {
+    window.alert(`Generate failed: ${(err as Error).message}`);
+  }
 }
 
 function addToShow(asset: DefaultAsset): void {
