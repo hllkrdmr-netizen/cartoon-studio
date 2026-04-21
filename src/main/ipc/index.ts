@@ -5,6 +5,7 @@ import type { Show } from '../../shared/show';
 import { settings } from '../settings';
 import { listDefaults } from '../resources';
 import { saveShow, loadShow, listShows, deleteShow } from '../showStore';
+import { generateLine } from '../tts';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, () => 'pong');
@@ -23,4 +24,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.showLoad, (_e, id: string) => loadShow(id));
   ipcMain.handle(IPC_CHANNELS.showList, () => listShows());
   ipcMain.handle(IPC_CHANNELS.showDelete, (_e, id: string) => deleteShow(id));
+
+  ipcMain.handle(IPC_CHANNELS.ttsGenerateLine, (_e, req) => generateLine(req));
 }

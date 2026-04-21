@@ -16,6 +16,9 @@ const api: IpcApi = {
   showLoad: (id) => ipcRenderer.invoke(IPC_CHANNELS.showLoad, id),
   showList: () => ipcRenderer.invoke(IPC_CHANNELS.showList),
   showDelete: (id) => ipcRenderer.invoke(IPC_CHANNELS.showDelete, id),
+
+  ttsGenerateLine: (req) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ttsGenerateLine, req),
 };
 
 contextBridge.exposeInMainWorld('api', api);

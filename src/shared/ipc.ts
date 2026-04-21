@@ -25,6 +25,20 @@ export type IpcApi = {
   showLoad: (id: string) => Promise<Show>;
   showList: () => Promise<ShowSummary[]>;
   showDelete: (id: string) => Promise<void>;
+
+  ttsGenerateLine: (req: {
+    showId: string;
+    lineId: string;
+    text: string;
+    model: string;
+    voice: string;
+    provider: string;
+  }) => Promise<{
+    audioFile: string;
+    words: Array<{ text: string; start: number; end: number }>;
+    cached: boolean;
+    hash: string;
+  }>;
 };
 
 export const IPC_CHANNELS = {
@@ -37,4 +51,5 @@ export const IPC_CHANNELS = {
   showLoad: 'show:load',
   showList: 'show:list',
   showDelete: 'show:delete',
+  ttsGenerateLine: 'tts:generateLine',
 } as const satisfies Record<keyof IpcApi, string>;

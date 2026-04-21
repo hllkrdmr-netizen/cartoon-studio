@@ -9,11 +9,16 @@ export function mountDialogue(root: HTMLElement): void {
 
     root.innerHTML = `
       <div class="flex flex-col h-full">
-        <div class="p-3 border-b border-neutral-800 flex items-center justify-between">
+        <div class="p-3 border-b border-neutral-800 flex items-center justify-between gap-2">
           <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Dialogue</h2>
-          <button id="add-line" class="text-xs rounded border border-neutral-700 hover:border-neutral-500 px-2 py-1">
-            + Line
-          </button>
+          <div class="flex gap-1">
+            <button id="generate-all" class="text-xs rounded border border-neutral-700 hover:border-neutral-500 px-2 py-1">
+              Generate all
+            </button>
+            <button id="add-line" class="text-xs rounded border border-neutral-700 hover:border-neutral-500 px-2 py-1">
+              + Line
+            </button>
+          </div>
         </div>
         <div id="lines" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
       </div>
@@ -52,6 +57,7 @@ export function mountDialogue(root: HTMLElement): void {
                 }>${v.label}</option>`,
             ).join('')}
           </select>
+          <button data-action="generate" title="Generate audio" class="text-neutral-400 hover:text-emerald-400">▶</button>
           <button data-action="delete" title="Delete" class="text-neutral-500 hover:text-red-400">×</button>
         </div>
         <textarea
@@ -60,6 +66,7 @@ export function mountDialogue(root: HTMLElement): void {
           class="w-full bg-neutral-800 rounded p-1 text-neutral-100 resize-y"
           placeholder="What does this character say?"
         >${escapeHtml(line.text)}</textarea>
+        <div data-status class="text-[10px] text-neutral-500"></div>
       `;
 
       card.addEventListener('click', (ev) => {
@@ -103,8 +110,24 @@ export function mountDialogue(root: HTMLElement): void {
         }));
       });
 
+      const generateBtn = card.querySelector<HTMLButtonElement>(
+        '[data-action="generate"]',
+      )!;
+      const status = card.querySelector<HTMLDivElement>('[data-status]')!;
+      generateBtn.addEventListener('click', async () => {
+        await runGenerate(line.id, status);
+      });
+
       lines.appendChild(card);
     });
+
+    root
+      .querySelector<HTMLButtonElement>('#generate-all')
+      ?.addEventListener('click', async () => {
+        for (const line of currentShow.value.dialogue) {
+          await runGenerate(line.id);
+        }
+      });
 
     root.querySelector('#add-line')?.addEventListener('click', () => {
       const v = defaultVoice();
@@ -142,6 +165,35 @@ function updateLine(
     ...s,
     dialogue: s.dialogue.map((l) => (l.id === id ? { ...l, ...patch } : l)),
   }));
+}
+
+async function runGenerate(
+  lineId: string,
+  status?: HTMLElement | null,
+): Promise<void> {
+  const show = currentShow.value;
+  const line = show.dialogue.find((l) => l.id === lineId);
+  if (!line || !line.text.trim()) {
+    if (status) status.textContent = 'Empty line — nothing to generate.';
+    return;
+  }
+  if (status) status.textContent = 'Generating…';
+  try {
+    const r = await window.api.ttsGenerateLine({
+      showId: show.id,
+      lineId,
+      text: line.text,
+      provider: line.provider,
+      model: line.model,
+      voice: line.voice,
+    });
+    if (status) {
+      status.textContent = `${r.cached ? 'cached' : 'generated'} · ${r.words.length} words`;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (status) status.textContent = `error: ${msg}`;
+  }
 }
 
 function escapeHtml(s: string): string {
