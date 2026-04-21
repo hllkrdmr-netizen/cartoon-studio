@@ -73,7 +73,9 @@ export async function buildComposition(show: Show): Promise<BuildResult> {
   );
 
   const html = renderHtml(show, segments, totalDuration);
-  const compPath = path.join(dir, 'composition.html');
+  // Write as index.html so hyperframes render auto-discovers the composition
+  // when we point it at the show working dir.
+  const compPath = path.join(dir, 'index.html');
   await fs.writeFile(compPath, html, 'utf8');
 
   return {

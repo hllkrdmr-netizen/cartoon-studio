@@ -9,7 +9,12 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      // hyperframes ships an ESM CLI + native deps that don't load from inside
+      // an asar archive when spawned as a child process. Unpack so node can
+      // resolve it from app.asar.unpacked/.
+      unpack: '**/node_modules/hyperframes/**',
+    },
     extraResource: ['./resources/defaults'],
   },
   rebuildConfig: {},

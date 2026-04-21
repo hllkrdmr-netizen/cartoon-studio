@@ -75,6 +75,17 @@ export type IpcApi = {
     instruction: string;
     surrounding?: string;
   }) => Promise<string>;
+
+  renderShow: (showId: string) => Promise<string>;
+  onRenderProgress: (
+    cb: (
+      p:
+        | { type: 'start'; outputPath: string }
+        | { type: 'log'; line: string }
+        | { type: 'done'; outputPath: string }
+        | { type: 'error'; message: string },
+    ) => void,
+  ) => () => void;
 };
 
 export const IPC_CHANNELS = {
@@ -96,4 +107,6 @@ export const IPC_CHANNELS = {
   previewUrl: 'preview:url',
   llmGenerateDialogue: 'llm:generateDialogue',
   llmRewriteLine: 'llm:rewriteLine',
+  renderShow: 'render:start',
+  onRenderProgress: 'render:progress',
 } as const satisfies Record<keyof IpcApi, string>;

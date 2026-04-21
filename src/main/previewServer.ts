@@ -72,5 +72,5 @@ export function startPreviewServer(): Promise<number> {
 
 export async function previewUrl(showId: string): Promise<string> {
   const p = await startPreviewServer();
-  return `http://127.0.0.1:${p}/${showId}/composition.html`;
+  return `http://127.0.0.1:${p}/${showId}/index.html`;
 }

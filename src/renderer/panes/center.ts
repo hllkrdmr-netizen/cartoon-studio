@@ -268,8 +268,9 @@ async function mountPreview(body: HTMLElement): Promise<void> {
         <button id="play" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Play</button>
         <button id="pause" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Pause</button>
         <button id="restart" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Restart</button>
-        <button id="rebuild" class="ml-auto px-2 py-1 rounded border border-neutral-700 hover:border-neutral-500">Rebuild</button>
-        <span id="status" class="text-neutral-500"></span>
+        <span id="status" class="text-neutral-500 ml-2 truncate flex-1"></span>
+        <button id="rebuild" class="px-2 py-1 rounded border border-neutral-700 hover:border-neutral-500">Rebuild</button>
+        <button id="render" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white">Render MP4</button>
       </div>
     </div>
   `;
@@ -298,7 +299,10 @@ async function mountPreview(body: HTMLElement): Promise<void> {
       return;
     }
   }
-  const url = await window.api.previewUrl(show.id);
+  const url = (await window.api.previewUrl(show.id)).replace(
+    /composition\.html$/,
+    'index.html',
+  );
   iframe.src = url;
 
   body.querySelector('#play')?.addEventListener('click', () => player()?.play());
@@ -310,5 +314,25 @@ async function mountPreview(body: HTMLElement): Promise<void> {
   body.querySelector('#rebuild')?.addEventListener('click', () => {
     lastBuiltShowSig = '';
     void mountPreview(body);
+  });
+
+  body.querySelector('#render')?.addEventListener('click', async () => {
+    status.textContent = 'preparing render…';
+    const off = window.api.onRenderProgress((p) => {
+      if (p.type === 'start') status.textContent = `rendering → ${p.outputPath}`;
+      else if (p.type === 'log') status.textContent = p.line.slice(0, 200);
+      else if (p.type === 'done') status.textContent = `done → ${p.outputPath}`;
+      else if (p.type === 'error') status.textContent = `render failed: ${p.message}`;
+    });
+    try {
+      // Force a rebuild before render so the on-disk index.html reflects current state.
+      await window.api.buildComposition(currentShow.value.id);
+      await window.api.renderShow(currentShow.value.id);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg !== 'cancelled') status.textContent = `render failed: ${msg}`;
+    } finally {
+      off();
+    }
   });
 }

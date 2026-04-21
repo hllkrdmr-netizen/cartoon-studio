@@ -12,6 +12,7 @@ import { listUserAssets, saveUserAsset } from '../userAssets';
 import { generateCharacter, generateScene } from '../recraft';
 import { rigSvg } from '../svgRig';
 import { generateDialogue, rewriteLine } from '../llm';
+import { renderShow } from '../render';
 import { dialog, BrowserWindow } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -92,4 +93,10 @@ export function registerIpcHandlers(): void {
     generateDialogue(args),
   );
   ipcMain.handle(IPC_CHANNELS.llmRewriteLine, (_e, args) => rewriteLine(args));
+
+  ipcMain.handle(IPC_CHANNELS.renderShow, async (e, showId: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) throw new Error('no window');
+    return renderShow(showId, win);
+  });
 }

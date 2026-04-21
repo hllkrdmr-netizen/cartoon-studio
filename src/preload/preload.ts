@@ -35,6 +35,15 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.llmGenerateDialogue, args),
   llmRewriteLine: (args) =>
     ipcRenderer.invoke(IPC_CHANNELS.llmRewriteLine, args),
+
+  renderShow: (showId) => ipcRenderer.invoke(IPC_CHANNELS.renderShow, showId),
+  onRenderProgress: (cb) => {
+    const handler = (_: unknown, p: unknown) =>
+      cb(p as Parameters<typeof cb>[0]);
+    ipcRenderer.on(IPC_CHANNELS.onRenderProgress, handler);
+    return () =>
+      ipcRenderer.removeListener(IPC_CHANNELS.onRenderProgress, handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
