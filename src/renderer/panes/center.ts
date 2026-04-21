@@ -1,4 +1,5 @@
 import { effect, signal } from '@preact/signals-core';
+import Moveable from 'moveable';
 import type { DefaultAsset } from '../../shared/ipc';
 import { currentShow, mutate, selection } from '../state';
 import { svgToDataUri, uid } from '../util';
@@ -7,87 +8,245 @@ const MIME = 'application/x-agentpark-asset';
 type Tab = 'editor' | 'preview';
 const tab = signal<Tab>('editor');
 
-// Module-level: lets the render effect see when a drag/resize is in flight
-// and skip the DOM rebuild that would tear down the captured slot.
-let interaction:
-  | { kind: 'drag'; characterId: string }
-  | { kind: 'resize'; characterId: string }
-  | null = null;
-
 // The active stage element. Updating this signal triggers a re-render in the
 // module-level editor effect. mountEditor sets it; mountPreview clears it.
 const editorStage = signal<HTMLDivElement | null>(null);
 
-// ---- Single module-level render effect ----
+// Persistent DOM: keyed by character id. Lets us keep slot elements stable
+// across state changes so Moveable doesn't lose its target every time
+// selection or position updates.
+const slotMap = new Map<string, HTMLDivElement>();
+let bgEl: HTMLImageElement | null = null;
+let emptyEl: HTMLDivElement | null = null;
+
+// One Moveable per stage lifetime; its target swaps as selection changes.
+let moveable: Moveable | null = null;
+
+// ---- Delete key shortcut (module-scope, one listener per app lifetime) ----
+window.addEventListener('keydown', (ev) => {
+  const t = ev.target as HTMLElement | null;
+  // Don't hijack Delete/Backspace while typing in an input/textarea.
+  if (
+    t &&
+    (t.tagName === 'INPUT' ||
+      t.tagName === 'TEXTAREA' ||
+      t.isContentEditable)
+  ) {
+    return;
+  }
+  if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+  const sel = selection.value;
+  if (sel.type !== 'character' || !sel.id) return;
+  ev.preventDefault();
+  const id = sel.id;
+  mutate((s) => ({
+    ...s,
+    characters: s.characters.filter((c) => c.id !== id),
+    // Also drop dialogue lines that pointed at this speaker — otherwise
+    // the TTS generator would keep trying to look up a character that
+    // no longer exists.
+    dialogue: s.dialogue.filter((l) => l.speakerId !== id),
+  }));
+  selection.value = { type: null, id: null };
+});
+
+// ---- Render effect ----
 //
-// One effect, never nested inside another. Watches currentShow + selection +
-// editorStage; bails out cleanly when the editor isn't active or while the
-// user is mid-drag.
-//
-// CRITICAL: read every tracked signal up front, *before* the early-returns.
-// signals-core re-tracks dependencies on every run; an early return that
-// happens before reading currentShow drops that subscription, so the next
-// addCharacter / pickScene / etc. won't trigger a re-render. This was the
-// "click second avatar, nothing appears" bug.
+// Reads all signals up-front (signals-core re-tracks per run; an early return
+// before reading a signal drops the subscription). Reconciles DOM rather than
+// full-rebuilding so Moveable's target stays stable.
 effect(() => {
   const stage = editorStage.value;
   const show = currentShow.value;
   const selected = selection.value;
-
   if (!stage) return;
-  if (interaction) return;
 
-  stage.replaceChildren();
-
+  // --- Scene background (single element, update in place) ---
   if (show.scene) {
-    const bg = document.createElement('img');
-    bg.src = svgToDataUri(show.scene.svg);
-    bg.className =
-      'absolute inset-0 w-full h-full object-cover pointer-events-none';
-    stage.appendChild(bg);
+    if (emptyEl && emptyEl.parentNode === stage) emptyEl.remove();
+    if (!bgEl) {
+      bgEl = document.createElement('img');
+      bgEl.className =
+        'absolute inset-0 w-full h-full object-cover pointer-events-none';
+      stage.prepend(bgEl);
+    } else if (bgEl.parentNode !== stage) {
+      stage.prepend(bgEl);
+    }
+    const desired = svgToDataUri(show.scene.svg);
+    if (bgEl.src !== desired) bgEl.src = desired;
   } else {
-    const empty = document.createElement('div');
-    empty.className =
-      'absolute inset-0 flex items-center justify-center text-xs text-neutral-600 pointer-events-none';
-    empty.textContent = 'Drop or click a scene from the library';
-    stage.appendChild(empty);
+    if (bgEl && bgEl.parentNode === stage) bgEl.remove();
+    if (!emptyEl) {
+      emptyEl = document.createElement('div');
+      emptyEl.className =
+        'absolute inset-0 flex items-center justify-center text-xs text-neutral-600 pointer-events-none';
+      emptyEl.textContent = 'Drop or click a scene from the library';
+    }
+    if (emptyEl.parentNode !== stage) stage.appendChild(emptyEl);
   }
 
-  // Sort by y so characters lower on stage render on top — naive depth.
-  const sorted = [...show.characters].sort((a, b) => a.y - b.y);
-  for (const c of sorted) {
-    const isSelected = selected.type === 'character' && selected.id === c.id;
-    const slot = document.createElement('div');
-    slot.className = `absolute select-none ${isSelected ? 'outline outline-2 outline-emerald-400/80' : ''}`;
+  // --- Reconcile slots ---
+  const presentIds = new Set(show.characters.map((c) => c.id));
+  for (const [id, slot] of slotMap) {
+    if (!presentIds.has(id)) {
+      slot.remove();
+      slotMap.delete(id);
+    }
+  }
+
+  for (const c of show.characters) {
+    let slot = slotMap.get(c.id);
+    if (!slot) {
+      slot = createSlot(c.id);
+      slotMap.set(c.id, slot);
+      stage.appendChild(slot);
+    } else if (slot.parentNode !== stage) {
+      // Tab switched back — re-attach to the new stage.
+      stage.appendChild(slot);
+    }
+
+    const img = slot.firstElementChild as HTMLImageElement;
+    const desired = svgToDataUri(c.svg);
+    if (img.src !== desired) img.src = desired;
+
     slot.style.left = `${c.x * 100}%`;
     slot.style.top = `${c.y * 100}%`;
     slot.style.transform = `translate(-50%, -100%) scale(${c.scale})`;
-    slot.style.transformOrigin = 'bottom center';
     slot.style.width = '20%';
-    slot.style.touchAction = 'none';
-    slot.style.cursor = 'grab';
-    slot.dataset.characterId = c.id;
-
-    const img = document.createElement('img');
-    img.src = svgToDataUri(c.svg);
-    img.className = 'w-full h-auto pointer-events-none';
-    img.draggable = false;
-    slot.appendChild(img);
-
-    attachDrag(slot, stage, c.id);
-
-    if (isSelected) {
-      const handle = document.createElement('div');
-      handle.className =
-        'absolute -bottom-1 -right-1 w-3 h-3 rounded-sm bg-emerald-400 cursor-nwse-resize';
-      handle.style.touchAction = 'none';
-      attachResize(handle, slot, stage, c.id);
-      slot.appendChild(handle);
-    }
-
-    stage.appendChild(slot);
+    slot.style.zIndex = String(Math.round(c.y * 1000));
   }
+
+  // --- Moveable (swap target on selection change) ---
+  const selectedSlot =
+    selected.type === 'character' && selected.id
+      ? slotMap.get(selected.id) ?? null
+      : null;
+
+  if (!moveable) {
+    moveable = createMoveable(stage);
+  }
+  if (moveable.target !== selectedSlot) {
+    moveable.target = selectedSlot;
+  }
+  // Force a layout update so handles sit on the current transform.
+  if (selectedSlot) moveable.updateRect();
 });
+
+function createSlot(characterId: string): HTMLDivElement {
+  const slot = document.createElement('div');
+  slot.className = 'absolute select-none';
+  slot.style.position = 'absolute';
+  slot.style.transformOrigin = 'bottom center';
+  slot.style.touchAction = 'none';
+  slot.style.cursor = 'pointer';
+  slot.dataset.characterId = characterId;
+
+  const img = document.createElement('img');
+  img.className = 'w-full h-auto pointer-events-none';
+  img.draggable = false;
+  slot.appendChild(img);
+
+  slot.addEventListener('pointerdown', (ev) => {
+    // Click-to-select. The pointerdown also starts the Moveable drag when the
+    // slot is already selected — Moveable attaches listeners to its own
+    // overlay, not the slot, so there's no conflict.
+    ev.stopPropagation();
+    if (selection.value.id !== characterId) {
+      selection.value = { type: 'character', id: characterId };
+    }
+  });
+
+  return slot;
+}
+
+function createMoveable(stage: HTMLElement): Moveable {
+  const m = new Moveable(stage, {
+    target: null,
+    draggable: true,
+    resizable: true,
+    keepRatio: true,
+    origin: false,
+    throttleDrag: 0,
+    throttleResize: 0,
+    renderDirections: ['nw', 'ne', 'sw', 'se'],
+    edge: false,
+    // The slot has a fixed base transform of translate(-50%, -100%) scale(s).
+    // Tell Moveable to preserve that structure so its drag/resize deltas
+    // compose with our anchor instead of clobbering it.
+    preventClickEventOnDrag: true,
+  });
+
+  // Drag
+  m.on('drag', ({ target, beforeTranslate }) => {
+    applyInteractionTransform(target as HTMLElement, beforeTranslate, null);
+  });
+  m.on('dragEnd', ({ target, isDrag }) => {
+    if (!isDrag) return;
+    commitFromRect(target as HTMLElement, stage);
+    // Reset inline drag translate — render effect will re-apply based on new state.
+    clearInteractionTransform(target as HTMLElement);
+  });
+
+  // Resize (4 corners, keepRatio true → uniform scale)
+  m.on('resize', ({ target, width, height, drag }) => {
+    const el = target as HTMLElement;
+    el.style.width = `${width}px`;
+    el.style.height = `${height}px`;
+    applyInteractionTransform(el, drag.beforeTranslate, null);
+  });
+  m.on('resizeEnd', ({ target, isDrag }) => {
+    if (!isDrag) return;
+    commitFromRect(target as HTMLElement, stage);
+    const el = target as HTMLElement;
+    el.style.height = '';
+    el.style.width = '20%';
+    clearInteractionTransform(el);
+  });
+
+  return m;
+}
+
+// Apply a Moveable delta on top of our base transform.
+function applyInteractionTransform(
+  el: HTMLElement,
+  beforeTranslate: number[] | undefined,
+  _unused: null,
+): void {
+  const id = el.dataset.characterId!;
+  const c = currentShow.value.characters.find((x) => x.id === id);
+  if (!c) return;
+  const [dx, dy] = beforeTranslate ?? [0, 0];
+  el.style.transform = `translate(-50%, -100%) scale(${c.scale}) translate(${dx}px, ${dy}px)`;
+}
+
+function clearInteractionTransform(el: HTMLElement): void {
+  // Render effect will set the final transform based on new state.
+  el.style.transform = '';
+}
+
+function commitFromRect(el: HTMLElement, stage: HTMLElement): void {
+  const id = el.dataset.characterId;
+  if (!id) return;
+  const rect = el.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const bottomX = (rect.left + rect.width / 2 - stageRect.left) / stageRect.width;
+  const bottomY = (rect.bottom - stageRect.top) / stageRect.height;
+  const scale = rect.width / (stageRect.width * 0.2);
+  mutate((s) => ({
+    ...s,
+    characters: s.characters.map((c) =>
+      c.id === id
+        ? {
+            ...c,
+            x: clamp01(bottomX),
+            y: clamp01(bottomY),
+            scale: clamp(scale, 0.2, 3),
+            z: Math.round(clamp01(bottomY) * 1000),
+          }
+        : c,
+    ),
+  }));
+}
 
 export function mountCenter(root: HTMLElement): void {
   root.innerHTML = `
@@ -112,9 +271,6 @@ export function mountCenter(root: HTMLElement): void {
   const body = root.querySelector<HTMLDivElement>('#tab-body')!;
   const hint = root.querySelector<HTMLElement>('#hint')!;
 
-  // Tab effect: just swaps body markup and toggles the editorStage signal.
-  // Crucially, no nested effect() inside — that's a memory leak in
-  // signals-core and was causing the "black screen on tab switch" bug.
   effect(() => {
     root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
       const isActive = b.dataset.tab === tab.value;
@@ -122,7 +278,7 @@ export function mountCenter(root: HTMLElement): void {
     });
     if (tab.value === 'editor') {
       hint.textContent =
-        'drag tiles from the library · drag a character to reposition · corner-handle to scale';
+        'click a character to select · drag to reposition · any corner to resize · Delete to remove';
       mountEditor(body);
     } else {
       hint.textContent = 'audio + lip sync runs from generated lines';
@@ -131,20 +287,27 @@ export function mountCenter(root: HTMLElement): void {
   });
 }
 
-// ---- Editor (drag/place/resize stage) ----
+// ---- Editor mount ----
 
 function mountEditor(body: HTMLElement): void {
-  // Defensive reset — if a prior interaction never fired pointerup (e.g. the
-  // user switched tabs mid-drag), the flag would remain set and the render
-  // effect below would never run.
-  interaction = null;
-
   body.innerHTML = `
     <div class="h-full flex items-center justify-center p-6">
       <div id="preview-stage" class="relative bg-neutral-900 rounded shadow-inner aspect-video w-full max-w-3xl overflow-hidden"></div>
     </div>
   `;
   const stage = body.querySelector<HTMLDivElement>('#preview-stage')!;
+
+  // Moveable is tied to a specific container; if we tab-switched, the old one
+  // is now on a detached stage and must be destroyed.
+  if (moveable) {
+    moveable.destroy();
+    moveable = null;
+  }
+  // Also drop the persistent DOM map — their elements were children of the
+  // old stage and are now orphaned.
+  slotMap.clear();
+  bgEl = null;
+  emptyEl = null;
 
   stage.addEventListener('dragover', (ev) => {
     if (ev.dataTransfer?.types.includes(MIME)) {
@@ -167,7 +330,18 @@ function mountEditor(body: HTMLElement): void {
     addAsset(asset, x, y);
   });
 
-  // Triggers the module-level render effect.
+  // Clicking empty space deselects.
+  stage.addEventListener('pointerdown', (ev) => {
+    if (ev.target === stage || (ev.target as HTMLElement).tagName === 'IMG') {
+      if (
+        (ev.target as HTMLElement).classList.contains('scene-bg') ||
+        ev.target === stage
+      ) {
+        selection.value = { type: null, id: null };
+      }
+    }
+  });
+
   editorStage.value = stage;
 }
 
@@ -207,148 +381,19 @@ function addAsset(asset: DefaultAsset, x: number, y: number): void {
   selection.value = { type: 'character', id: newId };
 }
 
-function attachDrag(
-  slot: HTMLElement,
-  stage: HTMLElement,
-  characterId: string,
-): void {
-  // Grab offset: where the user clicked relative to the character's anchor
-  // (its bottom-center, where x/y in state lives). Without this, the character
-  // snaps so its feet are under the cursor on the first move and shoots away.
-  let grabDx = 0;
-  let grabDy = 0;
-  let lastX = 0;
-  let lastY = 0;
-
-  slot.addEventListener('pointerdown', (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    const c = currentShow.value.characters.find((x) => x.id === characterId);
-    if (!c) return;
-    const rect = stage.getBoundingClientRect();
-    const cursorX = (ev.clientX - rect.left) / rect.width;
-    const cursorY = (ev.clientY - rect.top) / rect.height;
-    grabDx = cursorX - c.x;
-    grabDy = cursorY - c.y;
-    lastX = c.x;
-    lastY = c.y;
-    // Set interaction BEFORE flipping selection — selection is a tracked
-    // signal and the render effect would otherwise replace this slot.
-    interaction = { kind: 'drag', characterId };
-    selection.value = { type: 'character', id: characterId };
-    slot.setPointerCapture(ev.pointerId);
-    slot.style.cursor = 'grabbing';
-  });
-
-  slot.addEventListener('pointermove', (ev) => {
-    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId)
-      return;
-    const rect = stage.getBoundingClientRect();
-    const cursorX = (ev.clientX - rect.left) / rect.width;
-    const cursorY = (ev.clientY - rect.top) / rect.height;
-    lastX = clamp01(cursorX - grabDx);
-    lastY = clamp01(cursorY - grabDy);
-    // Live DOM update — bypass the store so the render effect doesn't run
-    // and tear down the captured slot. Commit on pointerup.
-    slot.style.left = `${lastX * 100}%`;
-    slot.style.top = `${lastY * 100}%`;
-  });
-
-  const finish = (ev: PointerEvent) => {
-    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId)
-      return;
-    if (slot.hasPointerCapture(ev.pointerId)) {
-      slot.releasePointerCapture(ev.pointerId);
-    }
-    slot.style.cursor = 'grab';
-    interaction = null;
-    // Use the live drag values directly. (Earlier `lastX || c.x` was wrong
-    // because 0 is a valid clamped position — the leftmost edge — and
-    // truthiness checks turned a legitimate 0 into "no change".)
-    const x = lastX;
-    const y = lastY;
-    mutate((s) => ({
-      ...s,
-      characters: s.characters.map((c) =>
-        c.id === characterId
-          ? { ...c, x, y, z: Math.round(y * 1000) }
-          : c,
-      ),
-    }));
-  };
-  slot.addEventListener('pointerup', finish);
-  slot.addEventListener('pointercancel', finish);
-}
-
-function attachResize(
-  handle: HTMLElement,
-  slot: HTMLElement,
-  stage: HTMLElement,
-  characterId: string,
-): void {
-  let startScale = 1;
-  let startDist = 0;
-  let lastScale = 1;
-
-  handle.addEventListener('pointerdown', (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    interaction = { kind: 'resize', characterId };
-    handle.setPointerCapture(ev.pointerId);
-    const rect = slot.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.bottom;
-    startDist = Math.hypot(ev.clientX - cx, ev.clientY - cy);
-    const c = currentShow.value.characters.find((x) => x.id === characterId);
-    startScale = c?.scale ?? 1;
-    lastScale = startScale;
-  });
-
-  handle.addEventListener('pointermove', (ev) => {
-    if (
-      interaction?.kind !== 'resize' ||
-      interaction.characterId !== characterId
-    )
-      return;
-    const slotRect = slot.getBoundingClientRect();
-    const cx = slotRect.left + slotRect.width / 2;
-    const cy = slotRect.bottom;
-    const dist = Math.hypot(ev.clientX - cx, ev.clientY - cy);
-    if (startDist <= 0) return;
-    const ratio = dist / startDist;
-    lastScale = clamp(startScale * ratio, 0.2, 3);
-    slot.style.transform = `translate(-50%, -100%) scale(${lastScale})`;
-  });
-
-  const finish = (ev: PointerEvent) => {
-    if (
-      interaction?.kind !== 'resize' ||
-      interaction.characterId !== characterId
-    )
-      return;
-    if (handle.hasPointerCapture(ev.pointerId)) {
-      handle.releasePointerCapture(ev.pointerId);
-    }
-    interaction = null;
-    mutate((s) => ({
-      ...s,
-      characters: s.characters.map((c) =>
-        c.id === characterId ? { ...c, scale: lastScale } : c,
-      ),
-    }));
-  };
-  handle.addEventListener('pointerup', finish);
-  handle.addEventListener('pointercancel', finish);
-}
-
 // ---- Preview (iframe with composition + controls) ----
 
 let lastBuiltShowSig = '';
 
 async function mountPreview(body: HTMLElement): Promise<void> {
-  // Detach the editor stage so the render effect bails when characters
-  // change while we're on the Preview tab.
   editorStage.value = null;
+  if (moveable) {
+    moveable.destroy();
+    moveable = null;
+  }
+  slotMap.clear();
+  bgEl = null;
+  emptyEl = null;
 
   body.innerHTML = `
     <div class="h-full flex flex-col">
