@@ -13,6 +13,7 @@ export type Word = { text: string; start: number; end: number };
 export type TtsResult = {
   audioFile: string; // relative to show dir
   words: Word[];
+  durationMs: number;
   cached: boolean;
   hash: string;
 };
@@ -89,10 +90,29 @@ export async function generateLine(req: TtsRequest): Promise<TtsResult> {
     JSON.stringify(words, null, 2),
   );
 
-  const meta = { hash, audioFile, words };
+  const durationMs =
+    result.metadata.audioDurationMs ??
+    Math.round((words.at(-1)?.end ?? 0) * 1000) + 200;
+  const meta = { hash, audioFile, words, durationMs };
   await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
 
   return { ...meta, cached: false };
+}
+
+export async function readLineMeta(
+  showId: string,
+  lineId: string,
+): Promise<TtsResult | null> {
+  try {
+    const raw = await fs.readFile(
+      path.join(showWorkingDir(showId), `${lineId}${META_SUFFIX}`),
+      'utf8',
+    );
+    const m = JSON.parse(raw) as Omit<TtsResult, 'cached'>;
+    return { ...m, cached: true };
+  } catch {
+    return null;
+  }
 }
 
 async function whisperWords(audioPath: string): Promise<Word[]> {

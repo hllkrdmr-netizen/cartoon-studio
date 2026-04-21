@@ -36,8 +36,17 @@ export type IpcApi = {
   }) => Promise<{
     audioFile: string;
     words: Array<{ text: string; start: number; end: number }>;
+    durationMs: number;
     cached: boolean;
     hash: string;
+  }>;
+
+  buildComposition: (showId: string) => Promise<{
+    outDir: string;
+    composition: string;
+    scene: string;
+    duration: number;
+    missingLines: string[];
   }>;
 };
 
@@ -52,4 +61,5 @@ export const IPC_CHANNELS = {
   showList: 'show:list',
   showDelete: 'show:delete',
   ttsGenerateLine: 'tts:generateLine',
+  buildComposition: 'composition:build',
 } as const satisfies Record<keyof IpcApi, string>;
