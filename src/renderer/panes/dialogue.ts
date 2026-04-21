@@ -57,6 +57,7 @@ export function mountDialogue(root: HTMLElement): void {
                 }>${v.label}</option>`,
             ).join('')}
           </select>
+          <button data-action="rewrite" title="Rewrite with LLM" class="text-neutral-400 hover:text-fuchsia-400">✨</button>
           <button data-action="generate" title="Generate audio" class="text-neutral-400 hover:text-emerald-400">▶</button>
           <button data-action="delete" title="Delete" class="text-neutral-500 hover:text-red-400">×</button>
         </div>
@@ -118,6 +119,13 @@ export function mountDialogue(root: HTMLElement): void {
         await runGenerate(line.id, status);
       });
 
+      const rewriteBtn = card.querySelector<HTMLButtonElement>(
+        '[data-action="rewrite"]',
+      )!;
+      rewriteBtn.addEventListener('click', async () => {
+        await runRewrite(line.id, status);
+      });
+
       lines.appendChild(card);
     });
 
@@ -128,6 +136,10 @@ export function mountDialogue(root: HTMLElement): void {
           await runGenerate(line.id);
         }
       });
+
+    root
+      .querySelector<HTMLButtonElement>('#write-llm')
+      ?.addEventListener('click', runWriteDialogue);
 
     root.querySelector('#add-line')?.addEventListener('click', () => {
       const v = defaultVoice();
@@ -165,6 +177,85 @@ function updateLine(
     ...s,
     dialogue: s.dialogue.map((l) => (l.id === id ? { ...l, ...patch } : l)),
   }));
+}
+
+async function runRewrite(
+  lineId: string,
+  status?: HTMLElement | null,
+): Promise<void> {
+  const show = currentShow.value;
+  const line = show.dialogue.find((l) => l.id === lineId);
+  if (!line) return;
+  const instruction = window.prompt(
+    'How should I rewrite this line? (e.g. "make it funnier", "shorten it", "more sarcastic")',
+    'Make it punchier.',
+  );
+  if (!instruction) return;
+  if (status) status.textContent = 'Rewriting…';
+  try {
+    const surrounding = show.dialogue
+      .filter((l) => l.id !== lineId)
+      .slice(0, 6)
+      .map((l) => {
+        const c = show.characters.find((c) => c.id === l.speakerId);
+        return `${c?.name ?? l.speakerId}: ${l.text}`;
+      })
+      .join('\n');
+    const rewritten = await window.api.llmRewriteLine({
+      text: line.text,
+      instruction,
+      surrounding,
+    });
+    mutate((s) => ({
+      ...s,
+      dialogue: s.dialogue.map((l) =>
+        l.id === lineId ? { ...l, text: rewritten } : l,
+      ),
+    }));
+    if (status) status.textContent = 'rewritten';
+  } catch (err) {
+    if (status) status.textContent = `error: ${(err as Error).message}`;
+  }
+}
+
+async function runWriteDialogue(): Promise<void> {
+  const show = currentShow.value;
+  if (show.characters.length === 0) {
+    window.alert('Add at least one character to the show first.');
+    return;
+  }
+  const premise = window.prompt(
+    'Premise (e.g. "Bill and Ted argue about pineapple pizza"):',
+  );
+  if (!premise) return;
+  const lineCount = parseInt(
+    window.prompt('How many lines?', '6') ?? '6',
+    10,
+  );
+  if (!Number.isFinite(lineCount) || lineCount <= 0) return;
+  try {
+    const lines = await window.api.llmGenerateDialogue({
+      premise,
+      cast: show.characters.map((c) => ({ id: c.id, name: c.name })),
+      lineCount,
+    });
+    mutate((s) => ({
+      ...s,
+      dialogue: [
+        ...s.dialogue,
+        ...lines.map((l) => ({
+          id: uid('line'),
+          speakerId: l.speakerId,
+          text: l.text,
+          provider: l.provider,
+          model: l.model,
+          voice: l.voice,
+        })),
+      ],
+    }));
+  } catch (err) {
+    window.alert(`Generate failed: ${(err as Error).message}`);
+  }
 }
 
 async function runGenerate(

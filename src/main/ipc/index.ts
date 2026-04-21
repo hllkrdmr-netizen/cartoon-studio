@@ -11,6 +11,7 @@ import { previewUrl } from '../previewServer';
 import { listUserAssets, saveUserAsset } from '../userAssets';
 import { generateCharacter, generateScene } from '../recraft';
 import { rigSvg } from '../svgRig';
+import { generateDialogue, rewriteLine } from '../llm';
 import { dialog, BrowserWindow } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -86,4 +87,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.previewUrl, (_e, showId: string) =>
     previewUrl(showId),
   );
+
+  ipcMain.handle(IPC_CHANNELS.llmGenerateDialogue, (_e, args) =>
+    generateDialogue(args),
+  );
+  ipcMain.handle(IPC_CHANNELS.llmRewriteLine, (_e, args) => rewriteLine(args));
 }

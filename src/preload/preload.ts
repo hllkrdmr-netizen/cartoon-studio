@@ -30,6 +30,11 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.buildComposition, showId),
 
   previewUrl: (showId) => ipcRenderer.invoke(IPC_CHANNELS.previewUrl, showId),
+
+  llmGenerateDialogue: (args) =>
+    ipcRenderer.invoke(IPC_CHANNELS.llmGenerateDialogue, args),
+  llmRewriteLine: (args) =>
+    ipcRenderer.invoke(IPC_CHANNELS.llmRewriteLine, args),
 };
 
 contextBridge.exposeInMainWorld('api', api);

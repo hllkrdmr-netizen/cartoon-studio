@@ -56,6 +56,25 @@ export type IpcApi = {
   }>;
 
   previewUrl: (showId: string) => Promise<string>;
+
+  llmGenerateDialogue: (args: {
+    premise: string;
+    cast: Array<{ id: string; name: string }>;
+    lineCount: number;
+  }) => Promise<
+    Array<{
+      speakerId: string;
+      text: string;
+      provider: string;
+      model: string;
+      voice: string;
+    }>
+  >;
+  llmRewriteLine: (args: {
+    text: string;
+    instruction: string;
+    surrounding?: string;
+  }) => Promise<string>;
 };
 
 export const IPC_CHANNELS = {
@@ -75,4 +94,6 @@ export const IPC_CHANNELS = {
   ttsGenerateLine: 'tts:generateLine',
   buildComposition: 'composition:build',
   previewUrl: 'preview:url',
+  llmGenerateDialogue: 'llm:generateDialogue',
+  llmRewriteLine: 'llm:rewriteLine',
 } as const satisfies Record<keyof IpcApi, string>;
