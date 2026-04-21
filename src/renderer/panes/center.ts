@@ -7,6 +7,13 @@ const MIME = 'application/x-agentpark-asset';
 type Tab = 'editor' | 'preview';
 const tab = signal<Tab>('editor');
 
+// Module-level so the editor effect can see when a drag/resize is in flight
+// and skip the DOM rebuild that would tear down the captured slot.
+let interaction:
+  | { kind: 'drag'; characterId: string }
+  | { kind: 'resize'; characterId: string }
+  | null = null;
+
 export function mountCenter(root: HTMLElement): void {
   root.innerHTML = `
     <div class="flex flex-col h-full">
@@ -77,6 +84,9 @@ function mountEditor(body: HTMLElement): void {
 
   effect(() => {
     if (tab.value !== 'editor') return; // skip if hidden
+    // Mid-interaction the slot DOM is mutated directly; rebuilding here
+    // would orphan the captured pointer and stop the drag dead.
+    if (interaction) return;
     const show = currentShow.value;
     const selected = selection.value;
     stage.replaceChildren();
@@ -173,33 +183,46 @@ function attachDrag(
   stage: HTMLElement,
   characterId: string,
 ): void {
-  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
 
   slot.addEventListener('pointerdown', (ev) => {
     ev.preventDefault();
+    // Set the interaction flag BEFORE flipping the selection signal so the
+    // editor effect (which subscribes to selection) bails out instead of
+    // replacing this slot mid-drag.
+    interaction = { kind: 'drag', characterId };
     selection.value = { type: 'character', id: characterId };
-    dragging = true;
     slot.setPointerCapture(ev.pointerId);
     slot.style.cursor = 'grabbing';
   });
 
   slot.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
+    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId) return;
     const rect = stage.getBoundingClientRect();
-    const x = clamp01((ev.clientX - rect.left) / rect.width);
-    const y = clamp01((ev.clientY - rect.top) / rect.height);
-    mutate((s) => ({
-      ...s,
-      characters: s.characters.map((c) =>
-        c.id === characterId ? { ...c, x, y, z: Math.round(y * 1000) } : c,
-      ),
-    }));
+    lastX = clamp01((ev.clientX - rect.left) / rect.width);
+    lastY = clamp01((ev.clientY - rect.top) / rect.height);
+    // Update the live DOM directly — bypass the store so the effect doesn't
+    // re-render and orphan our captured slot. We commit on pointerup.
+    slot.style.left = `${lastX * 100}%`;
+    slot.style.top = `${lastY * 100}%`;
   });
 
   slot.addEventListener('pointerup', (ev) => {
-    dragging = false;
+    if (interaction?.kind !== 'drag' || interaction.characterId !== characterId) return;
     slot.releasePointerCapture(ev.pointerId);
     slot.style.cursor = 'grab';
+    interaction = null;
+    // Now commit. The effect will run, replace_children, and re-render with
+    // the new position — visually identical to what's already on screen.
+    mutate((s) => ({
+      ...s,
+      characters: s.characters.map((c) =>
+        c.id === characterId
+          ? { ...c, x: lastX || c.x, y: lastY || c.y, z: Math.round((lastY || c.y) * 1000) }
+          : c,
+      ),
+    }));
   });
 }
 
@@ -209,14 +232,14 @@ function attachResize(
   stage: HTMLElement,
   characterId: string,
 ): void {
-  let resizing = false;
   let startScale = 1;
   let startDist = 0;
+  let lastScale = 1;
 
   handle.addEventListener('pointerdown', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    resizing = true;
+    interaction = { kind: 'resize', characterId };
     handle.setPointerCapture(ev.pointerId);
     const rect = slot.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -224,28 +247,36 @@ function attachResize(
     startDist = Math.hypot(ev.clientX - cx, ev.clientY - cy);
     const c = currentShow.value.characters.find((x) => x.id === characterId);
     startScale = c?.scale ?? 1;
+    lastScale = startScale;
   });
 
   handle.addEventListener('pointermove', (ev) => {
-    if (!resizing) return;
+    if (interaction?.kind !== 'resize' || interaction.characterId !== characterId) return;
     const slotRect = slot.getBoundingClientRect();
     const cx = slotRect.left + slotRect.width / 2;
     const cy = slotRect.bottom;
     const dist = Math.hypot(ev.clientX - cx, ev.clientY - cy);
     if (startDist <= 0) return;
     const ratio = dist / startDist;
-    const next = clamp(startScale * ratio, 0.2, 3);
-    mutate((s) => ({
-      ...s,
-      characters: s.characters.map((c) =>
-        c.id === characterId ? { ...c, scale: next } : c,
-      ),
-    }));
+    lastScale = clamp(startScale * ratio, 0.2, 3);
+    // Live DOM update; preserve the existing left/top so the slot stays
+    // anchored at its current position during the resize.
+    const c = currentShow.value.characters.find((x) => x.id === characterId);
+    if (c) {
+      slot.style.transform = `translate(-50%, -100%) scale(${lastScale})`;
+    }
   });
 
   handle.addEventListener('pointerup', (ev) => {
-    resizing = false;
+    if (interaction?.kind !== 'resize' || interaction.characterId !== characterId) return;
     handle.releasePointerCapture(ev.pointerId);
+    interaction = null;
+    mutate((s) => ({
+      ...s,
+      characters: s.characters.map((c) =>
+        c.id === characterId ? { ...c, scale: lastScale } : c,
+      ),
+    }));
   });
 }
 
