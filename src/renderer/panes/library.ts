@@ -52,20 +52,51 @@ export function mountLibrary(root: HTMLElement): void {
     `;
 
     const renderTile = (asset: DefaultAsset) => {
-      const tile = document.createElement('button');
+      const isUserAsset = asset.id.includes(':user/');
+      const tile = document.createElement('div');
       tile.className =
-        'group rounded border border-neutral-800 bg-neutral-900 hover:border-neutral-600 p-2 text-left flex flex-col gap-1';
+        'group relative rounded border border-neutral-800 bg-neutral-900 hover:border-neutral-600 p-2 text-left flex flex-col gap-1 cursor-pointer';
       tile.innerHTML = `
         <div class="aspect-square rounded bg-neutral-950 flex items-center justify-center overflow-hidden">
-          <img src="${svgToDataUri(asset.svg)}" class="max-w-full max-h-full" alt="${asset.name}" />
+          <img src="${svgToDataUri(asset.svg)}" class="max-w-full max-h-full" alt="${asset.name}" draggable="false" />
         </div>
         <span class="text-xs text-neutral-300 truncate">${asset.name}</span>
+        ${
+          isUserAsset
+            ? `<button data-action="delete-asset"
+                 class="absolute top-1 right-1 hidden group-hover:flex items-center justify-center w-5 h-5 rounded bg-neutral-950/80 hover:bg-red-600 text-neutral-300 hover:text-white text-xs"
+                 title="Delete from library">×</button>`
+            : ''
+        }
       `;
       tile.draggable = true;
       tile.addEventListener('dragstart', (ev) => {
         ev.dataTransfer?.setData('application/x-agentpark-asset', asset.id);
       });
-      tile.addEventListener('click', () => addToShow(asset));
+      tile.addEventListener('click', (ev) => {
+        // Don't add to show when the user clicked the delete button.
+        if ((ev.target as HTMLElement).closest('[data-action="delete-asset"]')) {
+          return;
+        }
+        addToShow(asset);
+      });
+      tile
+        .querySelector<HTMLButtonElement>('[data-action="delete-asset"]')
+        ?.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const ok = window.confirm(
+            `Delete "${asset.name}" from your library? This cannot be undone.`,
+          );
+          if (!ok) return;
+          try {
+            await window.api.userAssetsDelete(asset.id);
+            userAssets.value = userAssets.value.filter(
+              (a) => a.id !== asset.id,
+            );
+          } catch (err) {
+            window.alert(`Delete failed: ${(err as Error).message}`);
+          }
+        });
       return tile;
     };
 

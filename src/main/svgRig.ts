@@ -105,6 +105,79 @@ export function rigSvg(svg: string): { svg: string; rigged: boolean } {
   return { svg: replaced, rigged: true };
 }
 
+// Apply the mouth rig at a known location (typically from the vision LLM).
+// `nx, ny, nw, nh` are normalized 0-1 fractions of the SVG viewBox.
+//
+// If a path inside that bbox looks like a mouth (dark fill or a wide-thin
+// stroke), remove it so the rig isn't drawn on top of an existing static
+// mouth. If nothing matches, just append the rig — the original mouth will
+// show through but the character will still lip-sync.
+export function applyMouthRigAt(
+  svg: string,
+  nx: number,
+  ny: number,
+  nw: number,
+  nh: number,
+): { svg: string; rigged: boolean; replaced: boolean } {
+  if (svg.includes('class="mouth-group')) {
+    return { svg, rigged: true, replaced: false };
+  }
+  const vb = parseViewBox(svg);
+  if (!vb) return { svg, rigged: false, replaced: false };
+
+  const cx = vb.w * (nx + nw / 2);
+  const cy = vb.h * (ny + nh / 2);
+  const minX = vb.w * nx;
+  const maxX = vb.w * (nx + nw);
+  const minY = vb.h * ny;
+  const maxY = vb.h * (ny + nh);
+  const diag = Math.hypot(vb.w, vb.h);
+
+  // Match <path d="..." [...] fill="..."> in either attribute order. The
+  // existing findMouthPath regex required fill after d; this one also
+  // accepts fill="none" (stroke-only mouths).
+  const pathRe =
+    /<path\b[^>]*\bd="([^"]+)"[^>]*\/?>(?:\s*<\/path>)?/g;
+  let best:
+    | { full: string; score: number }
+    | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = pathRe.exec(svg)) !== null) {
+    const full = m[0];
+    const d = m[1];
+    const fillMatch = full.match(/\bfill="([^"]+)"/);
+    const fill = fillMatch?.[1] ?? '';
+    const bb = pathBbox(d);
+    if (!bb) continue;
+    const pcx = bb.x + bb.w / 2;
+    const pcy = bb.y + bb.h / 2;
+    if (pcx < minX || pcx > maxX || pcy < minY || pcy > maxY) continue;
+    const dark = fillIsDark(fill) ? 2 : 0;
+    const dist = Math.hypot(pcx - cx, pcy - cy);
+    const closeness = 1 - dist / diag;
+    const score = dark + closeness;
+    if (!best || score > best.score) best = { full, score };
+  }
+
+  const rig = MOUTH_RIG_TEMPLATE.replace('__CX__', cx.toFixed(2)).replace(
+    '__CY__',
+    cy.toFixed(2),
+  );
+  if (best) {
+    return {
+      svg: svg.replace(best.full, rig),
+      rigged: true,
+      replaced: true,
+    };
+  }
+  // No path inside the bbox — just append the rig as an overlay.
+  return {
+    svg: svg.replace('</svg>', `${rig}</svg>`),
+    rigged: true,
+    replaced: false,
+  };
+}
+
 export function stripMagenta(svg: string): string {
   // Recraft sometimes emits a <rect ... fill="rgb(255,0,255)"> covering the
   // canvas. Drop any rect with that exact fill — leaves true foreground

@@ -26,7 +26,11 @@ const createWindow = () => {
     );
   }
 
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
+  // DevTools off by default. Open with Cmd/Ctrl+Opt+I (Electron's built-in
+  // shortcut) when you need them — or set AGENT_PARK_DEVTOOLS=1 to auto-open.
+  if (process.env.AGENT_PARK_DEVTOOLS === '1') {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 };
 
 app.on('ready', () => {

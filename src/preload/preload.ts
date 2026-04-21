@@ -17,6 +17,8 @@ const api: IpcApi = {
   generateScene: (prompt, name) =>
     ipcRenderer.invoke(IPC_CHANNELS.generateScene, prompt, name),
   uploadAsset: (type) => ipcRenderer.invoke(IPC_CHANNELS.uploadAsset, type),
+  userAssetsDelete: (id) =>
+    ipcRenderer.invoke(IPC_CHANNELS.userAssetsDelete, id),
 
   showSave: (show) => ipcRenderer.invoke(IPC_CHANNELS.showSave, show),
   showLoad: (id) => ipcRenderer.invoke(IPC_CHANNELS.showLoad, id),

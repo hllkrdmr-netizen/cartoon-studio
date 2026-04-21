@@ -37,6 +37,19 @@ export async function saveUserAsset(
   return { id, name, type, svg };
 }
 
+export async function deleteUserAsset(id: string): Promise<void> {
+  // id shape: "<type>:user/<stem>"
+  const m = id.match(/^(character|scene):user\/(.+)$/);
+  if (!m) return;
+  const [, type, stem] = m;
+  const file = path.join(assetsDir(type as 'character' | 'scene'), `${stem}.svg`);
+  try {
+    await fs.unlink(file);
+  } catch {
+    // ignore — file might already be gone
+  }
+}
+
 export async function listUserAssets(): Promise<UserAsset[]> {
   const out: UserAsset[] = [];
   for (const type of ['character', 'scene'] as const) {

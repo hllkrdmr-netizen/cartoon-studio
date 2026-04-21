@@ -123,9 +123,16 @@ function renderHtml(
     <title>${escapeHtml(show.name)}</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        width: 100%; height: 100%; overflow: hidden; background: #111;
+      }
+      body {
+        display: grid; place-items: center;
+      }
       [data-composition-id="${show.id}"] {
         position: relative; width: ${STAGE_W}px; height: ${STAGE_H}px;
         background: #111; color: #1a1a1a; overflow: hidden;
+        transform-origin: center center;
       }
       .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
       .slot { position: absolute; transform-origin: bottom center; }
@@ -141,6 +148,27 @@ function renderHtml(
 ${audioTags}
       <script src="scene.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        // Scale-to-fit: keeps the inner stage at native ${STAGE_W}x${STAGE_H}
+        // (so HyperFrames render is pixel-accurate at full resolution) while
+        // letting it fit any preview iframe size. When the viewport is
+        // already ${STAGE_W}x${STAGE_H} (the render path), the scale is 1
+        // and nothing changes.
+        (function () {
+          var root = document.querySelector('[data-composition-id]');
+          if (!root) return;
+          function fit() {
+            var sx = window.innerWidth / ${STAGE_W};
+            var sy = window.innerHeight / ${STAGE_H};
+            var s = Math.min(sx, sy);
+            // Avoid sub-pixel shimmer when scale ≈ 1
+            if (Math.abs(s - 1) < 0.01) s = 1;
+            root.style.transform = 'scale(' + s + ')';
+          }
+          fit();
+          window.addEventListener('resize', fit);
+        })();
+      </script>
       <script>
         (function () {
           var S = window.SCENE_DATA;
