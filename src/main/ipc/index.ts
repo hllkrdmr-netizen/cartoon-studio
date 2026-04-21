@@ -10,6 +10,10 @@ import { buildComposition } from '../composition';
 import { previewUrl } from '../previewServer';
 import { listUserAssets, saveUserAsset } from '../userAssets';
 import { generateCharacter, generateScene } from '../recraft';
+import { rigSvg } from '../svgRig';
+import { dialog, BrowserWindow } from 'electron';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, () => 'pong');
@@ -36,6 +40,36 @@ export function registerIpcHandlers(): void {
     async (_e, prompt: string, name: string) => {
       const svg = await generateScene(prompt);
       return saveUserAsset('scene', name, svg);
+    },
+  );
+  ipcMain.handle(
+    IPC_CHANNELS.uploadAsset,
+    async (e, type: 'character' | 'scene') => {
+      const win = BrowserWindow.fromWebContents(e.sender) ?? undefined;
+      const r = await dialog.showOpenDialog(win!, {
+        title: type === 'character' ? 'Choose a character SVG' : 'Choose a scene SVG',
+        filters: [{ name: 'SVG', extensions: ['svg'] }],
+        properties: ['openFile'],
+      });
+      if (r.canceled || r.filePaths.length === 0) return null;
+      const file = r.filePaths[0];
+      const raw = await fs.readFile(file, 'utf8');
+      let svg = raw;
+      let warning: string | undefined;
+      if (type === 'character') {
+        const rigged = rigSvg(raw);
+        if (!rigged.rigged) {
+          warning =
+            'Could not auto-detect a mouth path on this SVG. The character will appear but lip sync will not animate. Edit the SVG to add <g class="mouth-group mouth-X"...> manually, or try a Recraft-generated character.';
+        }
+        svg = rigged.svg;
+      }
+      const name = path
+        .basename(file, path.extname(file))
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const asset = await saveUserAsset(type, name, svg);
+      return { asset, warning };
     },
   );
 

@@ -23,6 +23,9 @@ export type IpcApi = {
   userAssetsList: () => Promise<DefaultAsset[]>;
   generateCharacter: (prompt: string, name: string) => Promise<DefaultAsset>;
   generateScene: (prompt: string, name: string) => Promise<DefaultAsset>;
+  uploadAsset: (
+    type: 'character' | 'scene',
+  ) => Promise<{ asset: DefaultAsset; warning?: string } | null>;
 
   showSave: (show: Show) => Promise<Show>;
   showLoad: (id: string) => Promise<Show>;
@@ -64,6 +67,7 @@ export const IPC_CHANNELS = {
   userAssetsList: 'assets:list',
   generateCharacter: 'assets:generateCharacter',
   generateScene: 'assets:generateScene',
+  uploadAsset: 'assets:upload',
   showSave: 'show:save',
   showLoad: 'show:load',
   showList: 'show:list',

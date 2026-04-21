@@ -28,16 +28,22 @@ export function mountLibrary(root: HTMLElement): void {
         </div>
         <div class="flex-1 overflow-y-auto p-3 space-y-4">
           <section>
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center justify-between mb-2 gap-1">
               <h3 class="text-xs uppercase tracking-wide text-neutral-500">Scenes</h3>
-              <button data-generate="scene" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+              <div class="flex gap-1">
+                <button data-upload="scene" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">Upload</button>
+                <button data-generate="scene" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+              </div>
             </div>
             <div class="grid grid-cols-2 gap-2" data-section="scenes"></div>
           </section>
           <section>
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center justify-between mb-2 gap-1">
               <h3 class="text-xs uppercase tracking-wide text-neutral-500">Characters</h3>
-              <button data-generate="character" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+              <div class="flex gap-1">
+                <button data-upload="character" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">Upload</button>
+                <button data-generate="character" class="text-[10px] rounded border border-neutral-700 hover:border-neutral-500 px-1.5 py-0.5">+ Generate</button>
+              </div>
             </div>
             <div class="grid grid-cols-2 gap-2" data-section="characters"></div>
           </section>
@@ -79,7 +85,24 @@ export function mountLibrary(root: HTMLElement): void {
     root
       .querySelector<HTMLButtonElement>('[data-generate="scene"]')
       ?.addEventListener('click', () => promptAndGenerate('scene'));
+    root
+      .querySelector<HTMLButtonElement>('[data-upload="character"]')
+      ?.addEventListener('click', () => promptAndUpload('character'));
+    root
+      .querySelector<HTMLButtonElement>('[data-upload="scene"]')
+      ?.addEventListener('click', () => promptAndUpload('scene'));
   });
+}
+
+async function promptAndUpload(type: 'character' | 'scene'): Promise<void> {
+  try {
+    const r = await window.api.uploadAsset(type);
+    if (!r) return;
+    if (r.warning) window.alert(r.warning);
+    userAssets.value = [...userAssets.value, r.asset];
+  } catch (err) {
+    window.alert(`Upload failed: ${(err as Error).message}`);
+  }
 }
 
 async function promptAndGenerate(type: 'character' | 'scene'): Promise<void> {
