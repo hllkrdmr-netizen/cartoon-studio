@@ -63,7 +63,7 @@ export function registerIpcHandlers(): void {
         const heur = rigSvg(raw);
         if (heur.rigged) {
           svg = heur.svg;
-        } else if (settings.has('ANTHROPIC_API_KEY')) {
+        } else if (settings.has('OPENAI_API_KEY')) {
           // Fall back to vision LLM: render the SVG to PNG, ask Claude to
           // locate the mouth, then place the rig at the returned bbox.
           try {
@@ -96,7 +96,7 @@ export function registerIpcHandlers(): void {
           }
         } else {
           warning =
-            'Could not auto-detect a mouth path on this SVG. Set ANTHROPIC_API_KEY in Settings to enable LLM-based detection, or hand-rig the SVG.';
+            'Could not auto-detect a mouth path on this SVG. Set OPENAI_API_KEY in Settings to enable LLM-based detection, or hand-rig the SVG.';
         }
       }
       const name = path

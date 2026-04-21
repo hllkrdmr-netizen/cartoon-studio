@@ -8,7 +8,6 @@ const ENV_MAP: Array<[string, Parameters<typeof settings.get>[0]]> = [
   ['GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
   ['OPENAI_API_KEY', 'OPENAI_API_KEY'],
   ['FAL_KEY', 'FAL_KEY'],
-  ['ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY'],
 ];
 
 export function applyKeysToEnv(): void {

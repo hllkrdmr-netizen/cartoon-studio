@@ -1,6 +1,18 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
+import { z } from 'zod';
+import { zodResponseFormat } from 'openai/helpers/zod';
 import { settings } from './settings';
 import { VOICES, defaultVoice } from '../shared/voices';
+
+type Cast = Array<{ id: string; name: string }>;
+
+export type GeneratedLine = {
+  speakerId: string;
+  text: string;
+  provider: string;
+  model: string;
+  voice: string;
+};
 
 export type MouthLocation = {
   found: boolean;
@@ -14,24 +26,20 @@ export type MouthLocation = {
   height: number;
 };
 
-type Cast = Array<{ id: string; name: string }>;
+// Models — chosen for the trade-off between quality and cost. Override via
+// env if you want to experiment.
+const DIALOGUE_MODEL = process.env.AGENT_PARK_DIALOGUE_MODEL ?? 'gpt-4o';
+const REWRITE_MODEL = process.env.AGENT_PARK_REWRITE_MODEL ?? 'gpt-4o-mini';
+const VISION_MODEL = process.env.AGENT_PARK_VISION_MODEL ?? 'gpt-4o';
 
-export type GeneratedLine = {
-  speakerId: string;
-  text: string;
-  provider: string;
-  model: string;
-  voice: string;
-};
-
-function client(): Anthropic {
-  const apiKey = settings.get('ANTHROPIC_API_KEY');
+function client(): OpenAI {
+  const apiKey = settings.get('OPENAI_API_KEY');
   if (!apiKey) {
     throw new Error(
-      'ANTHROPIC_API_KEY is not set. Add it in Settings to use LLM dialogue features.',
+      'OPENAI_API_KEY is not set. Add it in Settings to use LLM features.',
     );
   }
-  return new Anthropic({ apiKey });
+  return new OpenAI({ apiKey });
 }
 
 const DIALOGUE_SYSTEM = `You are a comedy writer for short animated dialogues in the style of South Park: punchy, conversational, irreverent. Each line is delivered by exactly one character. Keep lines under 25 words; aim for a natural back-and-forth rhythm. Avoid stage directions, parentheticals, or speaker prefixes — just the spoken text. Match each line to a speakerId from the provided cast.`;
@@ -39,90 +47,6 @@ const DIALOGUE_SYSTEM = `You are a comedy writer for short animated dialogues in
 const REWRITE_SYSTEM = `You are an editor for short animated dialogues. You rewrite a single spoken line per the user's instruction without adding stage directions, parentheticals, or quotation marks. Return only the rewritten line as plain text — no explanation, no preamble.`;
 
 const MOUTH_VISION_SYSTEM = `You analyze cartoon character images and identify mouth locations. The character may face the camera directly or at an angle. The mouth might be a line, an oval, an open shape with teeth/tongue, or a small dark gap. Always pick the most plausible single mouth region — never multiple regions, never the eyes or nose.`;
-
-export async function detectMouthInImage(
-  pngBuffer: Buffer,
-): Promise<MouthLocation> {
-  const c = client();
-  const r = await c.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 1024,
-    thinking: { type: 'adaptive' },
-    system: MOUTH_VISION_SYSTEM,
-    tools: [
-      {
-        name: 'emit_mouth_location',
-        description:
-          'Report the bounding box of the mouth on this character. Coordinates are fractions of the image: 0,0 is top-left, 1,1 is bottom-right.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            found: {
-              type: 'boolean',
-              description: 'True if a mouth is visible on the character.',
-            },
-            x: {
-              type: 'number',
-              description: 'Left edge of mouth bbox, 0 to 1.',
-            },
-            y: {
-              type: 'number',
-              description: 'Top edge of mouth bbox, 0 to 1.',
-            },
-            width: {
-              type: 'number',
-              description: 'Width of mouth bbox, 0 to 1.',
-            },
-            height: {
-              type: 'number',
-              description: 'Height of mouth bbox, 0 to 1.',
-            },
-          },
-          required: ['found', 'x', 'y', 'width', 'height'],
-        },
-      },
-    ],
-    tool_choice: { type: 'tool', name: 'emit_mouth_location' },
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/png',
-              data: pngBuffer.toString('base64'),
-            },
-          },
-          {
-            type: 'text',
-            text: 'Find the mouth on this character. Use the emit_mouth_location tool. If no mouth is visible (e.g. the figure has no face), return found=false with zeros.',
-          },
-        ],
-      },
-    ],
-  });
-
-  const toolUse = r.content.find(
-    (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-  );
-  if (!toolUse) throw new Error('Vision LLM did not return a mouth location.');
-  const out = toolUse.input as MouthLocation;
-  // Sanity-clamp in case the model returns slightly out-of-range numbers.
-  return {
-    found: Boolean(out.found),
-    x: clamp01(out.x),
-    y: clamp01(out.y),
-    width: clamp01(out.width),
-    height: clamp01(out.height),
-  };
-}
-
-function clamp01(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(1, n));
-}
 
 function assignVoice(idx: number): {
   provider: string;
@@ -134,13 +58,26 @@ function assignVoice(idx: number): {
   return { provider: v.provider, model: v.model, voice: v.voice };
 }
 
+const DialogueSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        speakerId: z.string(),
+        text: z.string(),
+      }),
+    )
+    .min(1),
+});
+
 export async function generateDialogue(args: {
   premise: string;
   cast: Cast;
   lineCount: number;
 }): Promise<GeneratedLine[]> {
   if (args.cast.length === 0) {
-    throw new Error('Add at least one character to the show before generating dialogue.');
+    throw new Error(
+      'Add at least one character to the show before generating dialogue.',
+    );
   }
 
   const c = client();
@@ -149,56 +86,34 @@ export async function generateDialogue(args: {
 Cast (use these speakerId values verbatim):
 ${args.cast.map((c) => `- ${c.id} → ${c.name}`).join('\n')}
 
-Write ${args.lineCount} lines of dialogue. Distribute lines across all listed speakers. Return via the emit_dialogue tool.`;
+Write ${args.lineCount} lines of dialogue. Distribute lines across all listed speakers.`;
 
-  const r = await c.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 4096,
-    thinking: { type: 'adaptive' },
-    system: [
-      { type: 'text', text: DIALOGUE_SYSTEM, cache_control: { type: 'ephemeral' } },
+  const completion = await c.chat.completions.parse({
+    model: DIALOGUE_MODEL,
+    messages: [
+      { role: 'system', content: DIALOGUE_SYSTEM },
+      { role: 'user', content: userPrompt },
     ],
-    tools: [
-      {
-        name: 'emit_dialogue',
-        description: 'Emit the generated dialogue lines.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            lines: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  speakerId: { type: 'string' },
-                  text: { type: 'string' },
-                },
-                required: ['speakerId', 'text'],
-              },
-            },
-          },
-          required: ['lines'],
-        },
-      },
-    ],
-    tool_choice: { type: 'tool', name: 'emit_dialogue' },
-    messages: [{ role: 'user', content: userPrompt }],
+    response_format: zodResponseFormat(DialogueSchema, 'dialogue'),
   });
 
-  const toolUse = r.content.find(
-    (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-  );
-  if (!toolUse) throw new Error('LLM did not return a dialogue tool call.');
-  const lines = (toolUse.input as { lines: Array<{ speakerId: string; text: string }> })
-    .lines;
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) {
+    const refusal = completion.choices[0]?.message.refusal;
+    throw new Error(
+      refusal
+        ? `Dialogue generation refused: ${refusal}`
+        : 'Dialogue generation returned no parsed output.',
+    );
+  }
 
-  // Map speakerId → consistent voice. If model returned an unknown id, fall back
-  // to the first cast member.
+  // Map speakerId → consistent voice. Fall back to the first cast member if
+  // the model returns an unknown id.
   const speakerVoice = new Map<string, ReturnType<typeof assignVoice>>();
   args.cast.forEach((c, i) => speakerVoice.set(c.id, assignVoice(i)));
   const fallback = args.cast[0].id;
 
-  return lines.map((l) => {
+  return parsed.lines.map((l) => {
     const speakerId = speakerVoice.has(l.speakerId) ? l.speakerId : fallback;
     const voice = speakerVoice.get(speakerId)!;
     return {
@@ -221,21 +136,72 @@ Instruction: ${args.instruction}
 
 Rewrite the line.`;
 
-  const r = await c.messages.create({
-    model: 'claude-sonnet-4-6',
+  const completion = await c.chat.completions.create({
+    model: REWRITE_MODEL,
     max_tokens: 256,
-    thinking: { type: 'adaptive' },
-    system: [
-      { type: 'text', text: REWRITE_SYSTEM, cache_control: { type: 'ephemeral' } },
+    messages: [
+      { role: 'system', content: REWRITE_SYSTEM },
+      { role: 'user', content: userPrompt },
     ],
-    messages: [{ role: 'user', content: userPrompt }],
   });
 
-  const text = r.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
+  const text = completion.choices[0]?.message.content?.trim();
   if (!text) throw new Error('LLM returned no text.');
   return text.replace(/^["'`]+|["'`]+$/g, '');
+}
+
+const MouthSchema = z.object({
+  found: z.boolean(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
+
+export async function detectMouthInImage(
+  pngBuffer: Buffer,
+): Promise<MouthLocation> {
+  const c = client();
+  const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+
+  const completion = await c.chat.completions.parse({
+    model: VISION_MODEL,
+    messages: [
+      { role: 'system', content: MOUTH_VISION_SYSTEM },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Find the mouth on this character. Return the bounding box as fractions of the image: 0,0 is top-left and 1,1 is bottom-right. If no mouth is visible (e.g. the figure has no face), set found=false and pass zeros.',
+          },
+          { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+        ],
+      },
+    ],
+    response_format: zodResponseFormat(MouthSchema, 'mouth_location'),
+  });
+
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) {
+    const refusal = completion.choices[0]?.message.refusal;
+    throw new Error(
+      refusal
+        ? `Vision request refused: ${refusal}`
+        : 'Vision request returned no parsed output.',
+    );
+  }
+
+  return {
+    found: Boolean(parsed.found),
+    x: clamp01(parsed.x),
+    y: clamp01(parsed.y),
+    width: clamp01(parsed.width),
+    height: clamp01(parsed.height),
+  };
+}
+
+function clamp01(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
 }

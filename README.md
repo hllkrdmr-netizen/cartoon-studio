@@ -45,9 +45,8 @@ All keys are stored encrypted in the OS keychain via Electron's `safeStorage`. N
 | --- | --- |
 | `ELEVEN_API_KEY` | ElevenLabs TTS — best voice quality, fastest path to native timestamps. |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini Flash TTS. |
-| `OPENAI_API_KEY` | OpenAI TTS, **and** Whisper word-level timestamps for any provider that doesn't return them natively. |
+| `OPENAI_API_KEY` | OpenAI TTS · Whisper word-level timestamps for any provider that doesn't return them natively · LLM dialogue authoring + per-line rewrites · vision-based mouth detection on uploaded SVGs. |
 | `FAL_KEY` | Recraft character + scene generation. |
-| `ANTHROPIC_API_KEY` | LLM dialogue authoring + per-line rewrites. |
 
 The app runs in read-only "demo" mode against bundled defaults if no keys are set.
 

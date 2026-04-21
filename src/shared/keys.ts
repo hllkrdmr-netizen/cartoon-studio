@@ -2,8 +2,7 @@ export type ApiKeyId =
   | 'ELEVEN_API_KEY'
   | 'GOOGLE_GENERATIVE_AI_API_KEY'
   | 'OPENAI_API_KEY'
-  | 'FAL_KEY'
-  | 'ANTHROPIC_API_KEY';
+  | 'FAL_KEY';
 
 export type ApiKeySpec = {
   id: ApiKeyId;
@@ -28,7 +27,8 @@ export const API_KEYS: readonly ApiKeySpec[] = [
   {
     id: 'OPENAI_API_KEY',
     label: 'OpenAI',
-    purpose: 'TTS, and Whisper fallback for timestamps when using non-native providers.',
+    purpose:
+      'TTS, Whisper word-level timestamps, dialogue authoring, line rewrites, and vision-based mouth detection on uploaded SVGs.',
     url: 'https://platform.openai.com/api-keys',
   },
   {
@@ -36,11 +36,5 @@ export const API_KEYS: readonly ApiKeySpec[] = [
     label: 'fal.ai',
     purpose: 'Recraft V4 character & scene generation.',
     url: 'https://fal.ai/dashboard/keys',
-  },
-  {
-    id: 'ANTHROPIC_API_KEY',
-    label: 'Anthropic',
-    purpose: 'LLM-assisted dialogue authoring (optional).',
-    url: 'https://console.anthropic.com/settings/keys',
   },
 ] as const;

@@ -42,7 +42,6 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
     "@fal-ai/client": "^1.9.5",
     "@preact/signals-core": "^1.14.1",
     "@speech-sdk/core": "^0.6.2",
