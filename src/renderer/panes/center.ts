@@ -1,24 +1,60 @@
-import { effect } from '@preact/signals-core';
+import { effect, signal } from '@preact/signals-core';
 import type { DefaultAsset } from '../../shared/ipc';
 import { currentShow, mutate, selection } from '../state';
 import { svgToDataUri, uid } from '../util';
 
 const MIME = 'application/x-agentpark-asset';
+type Tab = 'editor' | 'preview';
+const tab = signal<Tab>('editor');
 
 export function mountCenter(root: HTMLElement): void {
   root.innerHTML = `
     <div class="flex flex-col h-full">
-      <div class="p-3 border-b border-neutral-800 flex items-center justify-between">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Preview</h2>
-        <span class="text-xs text-neutral-500">drag tiles from the library · drag characters to reposition · corner-handle to scale</span>
+      <div class="p-2 border-b border-neutral-800 flex items-center justify-between gap-2">
+        <div class="flex gap-1" id="tabs">
+          <button data-tab="editor" class="text-xs px-3 py-1 rounded">Editor</button>
+          <button data-tab="preview" class="text-xs px-3 py-1 rounded">Preview</button>
+        </div>
+        <span id="hint" class="text-xs text-neutral-500"></span>
       </div>
-      <div class="flex-1 flex items-center justify-center bg-neutral-950 p-6">
-        <div id="preview-stage" class="relative bg-neutral-900 rounded shadow-inner aspect-video w-full max-w-3xl overflow-hidden"></div>
-      </div>
+      <div id="tab-body" class="flex-1 overflow-hidden bg-neutral-950"></div>
     </div>
   `;
 
-  const stage = root.querySelector<HTMLDivElement>('#preview-stage')!;
+  root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      tab.value = btn.dataset.tab as Tab;
+    });
+  });
+
+  const body = root.querySelector<HTMLDivElement>('#tab-body')!;
+  const hint = root.querySelector<HTMLElement>('#hint')!;
+
+  effect(() => {
+    root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
+      const isActive = b.dataset.tab === tab.value;
+      b.className = `text-xs px-3 py-1 rounded ${isActive ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200'}`;
+    });
+    if (tab.value === 'editor') {
+      hint.textContent =
+        'drag tiles from the library · drag characters to reposition · corner-handle to scale';
+      mountEditor(body);
+    } else {
+      hint.textContent = 'audio + lip sync runs from generated lines';
+      void mountPreview(body);
+    }
+  });
+}
+
+// ---- Editor (drag/place/resize stage) ----
+
+function mountEditor(body: HTMLElement): void {
+  body.innerHTML = `
+    <div class="h-full flex items-center justify-center p-6">
+      <div id="preview-stage" class="relative bg-neutral-900 rounded shadow-inner aspect-video w-full max-w-3xl overflow-hidden"></div>
+    </div>
+  `;
+  const stage = body.querySelector<HTMLDivElement>('#preview-stage')!;
 
   stage.addEventListener('dragover', (ev) => {
     if (ev.dataTransfer?.types.includes(MIME)) {
@@ -40,6 +76,7 @@ export function mountCenter(root: HTMLElement): void {
   });
 
   effect(() => {
+    if (tab.value !== 'editor') return; // skip if hidden
     const show = currentShow.value;
     const selected = selection.value;
     stage.replaceChildren();
@@ -47,7 +84,8 @@ export function mountCenter(root: HTMLElement): void {
     if (show.scene) {
       const bg = document.createElement('img');
       bg.src = svgToDataUri(show.scene.svg);
-      bg.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none';
+      bg.className =
+        'absolute inset-0 w-full h-full object-cover pointer-events-none';
       stage.appendChild(bg);
     } else {
       const empty = document.createElement('div');
@@ -96,6 +134,10 @@ export function mountCenter(root: HTMLElement): void {
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
 }
 
 function addAsset(asset: DefaultAsset, x: number, y: number): void {
@@ -207,6 +249,66 @@ function attachResize(
   });
 }
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, n));
+// ---- Preview (iframe with composition + controls) ----
+
+let lastBuiltShowSig = '';
+
+async function mountPreview(body: HTMLElement): Promise<void> {
+  body.innerHTML = `
+    <div class="h-full flex flex-col">
+      <div class="flex-1 flex items-center justify-center p-6">
+        <iframe
+          id="preview-iframe"
+          class="bg-neutral-900 rounded shadow-inner aspect-video w-full max-w-3xl"
+          sandbox="allow-scripts allow-same-origin"
+          title="composition preview"
+        ></iframe>
+      </div>
+      <div class="border-t border-neutral-800 px-3 py-2 flex items-center gap-2 text-xs">
+        <button id="play" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Play</button>
+        <button id="pause" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Pause</button>
+        <button id="restart" class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Restart</button>
+        <button id="rebuild" class="ml-auto px-2 py-1 rounded border border-neutral-700 hover:border-neutral-500">Rebuild</button>
+        <span id="status" class="text-neutral-500"></span>
+      </div>
+    </div>
+  `;
+
+  const iframe = body.querySelector<HTMLIFrameElement>('#preview-iframe')!;
+  const status = body.querySelector<HTMLElement>('#status')!;
+  const player = () =>
+    (iframe.contentWindow as unknown as { __player?: { play: () => void; pause: () => void; seek: (t: number) => void } } | null)?.__player ?? null;
+
+  const show = currentShow.value;
+  const sig = JSON.stringify(show);
+  const needBuild = sig !== lastBuiltShowSig;
+
+  status.textContent = needBuild ? 'building…' : 'loading…';
+  if (needBuild) {
+    try {
+      const r = await window.api.buildComposition(show.id);
+      lastBuiltShowSig = sig;
+      if (r.missingLines.length > 0) {
+        status.textContent = `built · ${r.missingLines.length} unrendered lines (Generate them in Dialogue)`;
+      } else {
+        status.textContent = `built · ${r.duration.toFixed(1)}s`;
+      }
+    } catch (e) {
+      status.textContent = `build error: ${(e as Error).message}`;
+      return;
+    }
+  }
+  const url = await window.api.previewUrl(show.id);
+  iframe.src = url;
+
+  body.querySelector('#play')?.addEventListener('click', () => player()?.play());
+  body.querySelector('#pause')?.addEventListener('click', () => player()?.pause());
+  body.querySelector('#restart')?.addEventListener('click', () => {
+    player()?.seek(0);
+    player()?.play();
+  });
+  body.querySelector('#rebuild')?.addEventListener('click', () => {
+    lastBuiltShowSig = '';
+    void mountPreview(body);
+  });
 }

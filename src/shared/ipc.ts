@@ -48,6 +48,8 @@ export type IpcApi = {
     duration: number;
     missingLines: string[];
   }>;
+
+  previewUrl: (showId: string) => Promise<string>;
 };
 
 export const IPC_CHANNELS = {
@@ -62,4 +64,5 @@ export const IPC_CHANNELS = {
   showDelete: 'show:delete',
   ttsGenerateLine: 'tts:generateLine',
   buildComposition: 'composition:build',
+  previewUrl: 'preview:url',
 } as const satisfies Record<keyof IpcApi, string>;

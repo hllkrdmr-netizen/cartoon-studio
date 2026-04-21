@@ -7,6 +7,7 @@ import { listDefaults } from '../resources';
 import { saveShow, loadShow, listShows, deleteShow } from '../showStore';
 import { generateLine } from '../tts';
 import { buildComposition } from '../composition';
+import { previewUrl } from '../previewServer';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, () => 'pong');
@@ -31,4 +32,7 @@ export function registerIpcHandlers(): void {
     const show = await loadShow(showId);
     return buildComposition(show);
   });
+  ipcMain.handle(IPC_CHANNELS.previewUrl, (_e, showId: string) =>
+    previewUrl(showId),
+  );
 }

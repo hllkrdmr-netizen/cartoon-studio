@@ -166,6 +166,66 @@ ${audioTags}
             }
           });
           window.__timelines["${show.id}"] = tl;
+
+          // Tiny self-contained player. The hyperframes preview/render
+          // wrap their own player around this same composition; this is
+          // just so the in-app preview iframe is interactive.
+          var audios = Array.prototype.slice.call(document.querySelectorAll('audio[id^="aud-"]'));
+          var played = {};
+          var t0 = 0;
+          var elapsed = 0;
+          var rafId = 0;
+          function tick() {
+            var now = performance.now() / 1000;
+            var t = elapsed + (now - t0);
+            tl.time(Math.min(t, S.duration));
+            audios.forEach(function (a) {
+              var s = parseFloat(a.dataset.start);
+              if (!played[a.id] && t >= s) {
+                played[a.id] = true;
+                a.currentTime = Math.max(0, t - s);
+                a.play().catch(function () {});
+              }
+            });
+            window.parent && window.parent.postMessage({ type: 'agentpark:tick', t: t }, '*');
+            if (t < S.duration) {
+              rafId = requestAnimationFrame(tick);
+            } else {
+              window.__player.pause();
+              window.parent && window.parent.postMessage({ type: 'agentpark:ended' }, '*');
+            }
+          }
+          window.__player = {
+            duration: S.duration,
+            play: function () {
+              if (rafId) return;
+              t0 = performance.now() / 1000;
+              rafId = requestAnimationFrame(tick);
+            },
+            pause: function () {
+              if (rafId) {
+                elapsed += performance.now() / 1000 - t0;
+                cancelAnimationFrame(rafId);
+                rafId = 0;
+              }
+              audios.forEach(function (a) { try { a.pause(); } catch (e) {} });
+            },
+            seek: function (t) {
+              this.pause();
+              elapsed = Math.max(0, Math.min(S.duration, t));
+              played = {};
+              audios.forEach(function (a) {
+                a.pause();
+                a.currentTime = 0;
+                var s = parseFloat(a.dataset.start);
+                if (elapsed >= s + parseFloat(a.dataset.duration)) {
+                  played[a.id] = true;
+                }
+              });
+              tl.time(elapsed);
+            },
+            stop: function () { this.seek(0); },
+          };
         })();
       </script>
     </div>

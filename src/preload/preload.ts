@@ -22,6 +22,8 @@ const api: IpcApi = {
 
   buildComposition: (showId) =>
     ipcRenderer.invoke(IPC_CHANNELS.buildComposition, showId),
+
+  previewUrl: (showId) => ipcRenderer.invoke(IPC_CHANNELS.previewUrl, showId),
 };
 
 contextBridge.exposeInMainWorld('api', api);
