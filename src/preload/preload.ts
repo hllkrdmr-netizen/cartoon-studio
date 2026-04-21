@@ -11,6 +11,11 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.settingsDelete, id),
 
   defaultsList: () => ipcRenderer.invoke(IPC_CHANNELS.defaultsList),
+
+  showSave: (show) => ipcRenderer.invoke(IPC_CHANNELS.showSave, show),
+  showLoad: (id) => ipcRenderer.invoke(IPC_CHANNELS.showLoad, id),
+  showList: () => ipcRenderer.invoke(IPC_CHANNELS.showList),
+  showDelete: (id) => ipcRenderer.invoke(IPC_CHANNELS.showDelete, id),
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -1,4 +1,5 @@
 import type { ApiKeyId } from './keys';
+import type { Show, ShowSummary } from './show';
 
 export type DefaultAsset = {
   id: string;
@@ -19,6 +20,11 @@ export type IpcApi = {
   settingsDelete: (id: ApiKeyId) => Promise<void>;
 
   defaultsList: () => Promise<DefaultAsset[]>;
+
+  showSave: (show: Show) => Promise<Show>;
+  showLoad: (id: string) => Promise<Show>;
+  showList: () => Promise<ShowSummary[]>;
+  showDelete: (id: string) => Promise<void>;
 };
 
 export const IPC_CHANNELS = {
@@ -27,4 +33,8 @@ export const IPC_CHANNELS = {
   settingsSet: 'settings:set',
   settingsDelete: 'settings:delete',
   defaultsList: 'defaults:list',
+  showSave: 'show:save',
+  showLoad: 'show:load',
+  showList: 'show:list',
+  showDelete: 'show:delete',
 } as const satisfies Record<keyof IpcApi, string>;

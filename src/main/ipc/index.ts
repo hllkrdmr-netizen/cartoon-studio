@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../../shared/ipc';
 import type { ApiKeyId } from '../../shared/keys';
+import type { Show } from '../../shared/show';
 import { settings } from '../settings';
 import { listDefaults } from '../resources';
+import { saveShow, loadShow, listShows, deleteShow } from '../showStore';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, () => 'pong');
@@ -16,4 +18,9 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IPC_CHANNELS.defaultsList, () => listDefaults());
+
+  ipcMain.handle(IPC_CHANNELS.showSave, (_e, show: Show) => saveShow(show));
+  ipcMain.handle(IPC_CHANNELS.showLoad, (_e, id: string) => loadShow(id));
+  ipcMain.handle(IPC_CHANNELS.showList, () => listShows());
+  ipcMain.handle(IPC_CHANNELS.showDelete, (_e, id: string) => deleteShow(id));
 }
