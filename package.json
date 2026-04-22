@@ -21,6 +21,9 @@
     "email": "bilal@jellypod.com"
   },
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
     "@electron-forge/maker-deb": "^7.11.1",
