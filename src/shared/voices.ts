@@ -61,7 +61,7 @@ export const PROVIDERS: readonly ProviderSpec[] = [
     id: 'google',
     label: 'Google Gemini',
     envKey: 'GOOGLE_API_KEY',
-    note: 'Gemini 2.5 Flash TTS · 15 distinctive voices · Whisper fallback for timestamps.',
+    note: 'Gemini 3.1 Flash TTS · 30 expressive voices · Whisper fallback for timestamps.',
   },
   {
     id: 'cartesia',
@@ -96,7 +96,9 @@ export const PROVIDERS: readonly ProviderSpec[] = [
 ] as const;
 
 // ── ElevenLabs ────────────────────────────────────────────────────────────
-const ELEVENLABS_MODEL = 'elevenlabs/eleven_multilingual_v2';
+// Eleven v3 — most expressive model. Voice IDs carry over from v2, and the
+// /with-timestamps endpoint accepts it as model_id (same response shape).
+const ELEVENLABS_MODEL = 'elevenlabs/eleven_v3';
 const ELEVENLABS_VOICES: VoiceOption[] = [
   { provider: 'elevenlabs', model: ELEVENLABS_MODEL, voice: '9BWtsMINqrJLrRacOk9x', label: 'Aria · young female (US)' },
   { provider: 'elevenlabs', model: ELEVENLABS_MODEL, voice: 'CwhRBWXzGAHq8TQ4Fs17', label: 'Roger · middle-aged male (US)' },
@@ -136,26 +138,40 @@ const OPENAI_VOICES: VoiceOption[] = [
 ];
 
 // ── Google Gemini ─────────────────────────────────────────────────────────
-// gemini-2.5-flash-preview-tts ships ~30 named voices; we surface the 15 most
-// distinctive across genders and tones. Full list:
+// gemini-3.1-flash-tts-preview ships 30 prebuilt voices. Full list:
 // https://ai.google.dev/gemini-api/docs/speech-generation
-const GOOGLE_MODEL = 'google/gemini-2.5-flash-preview-tts';
+const GOOGLE_MODEL = 'google/gemini-3.1-flash-tts-preview';
 const GOOGLE_VOICES: VoiceOption[] = [
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Puck',      label: 'Puck · upbeat' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Kore',      label: 'Kore · firm female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Charon',    label: 'Charon · informative male' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Fenrir',    label: 'Fenrir · excitable male' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Leda',      label: 'Leda · youthful female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Aoede',     label: 'Aoede · breezy female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Orus',      label: 'Orus · firm male' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Zephyr',    label: 'Zephyr · bright female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Algenib',   label: 'Algenib · gravelly male' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Achernar',  label: 'Achernar · soft female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Sadachbia', label: 'Sadachbia · lively' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Despina',   label: 'Despina · smooth female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Enceladus', label: 'Enceladus · breathy male' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Gacrux',    label: 'Gacrux · mature female' },
-  { provider: 'google', model: GOOGLE_MODEL, voice: 'Sulafat',   label: 'Sulafat · warm female' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Zephyr',         label: 'Zephyr · bright' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Puck',           label: 'Puck · upbeat' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Charon',         label: 'Charon · informative' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Kore',           label: 'Kore · firm' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Fenrir',         label: 'Fenrir · excitable' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Leda',           label: 'Leda · youthful' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Orus',           label: 'Orus · firm' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Aoede',          label: 'Aoede · breezy' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Callirrhoe',     label: 'Callirrhoe · easy-going' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Autonoe',        label: 'Autonoe · bright' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Enceladus',      label: 'Enceladus · breathy' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Iapetus',        label: 'Iapetus · clear' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Umbriel',        label: 'Umbriel · easy-going' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Algieba',        label: 'Algieba · smooth' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Despina',        label: 'Despina · smooth' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Erinome',        label: 'Erinome · clear' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Algenib',        label: 'Algenib · gravelly' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Rasalgethi',     label: 'Rasalgethi · informative' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Laomedeia',      label: 'Laomedeia · upbeat' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Achernar',       label: 'Achernar · soft' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Alnilam',        label: 'Alnilam · firm' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Schedar',        label: 'Schedar · even' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Gacrux',         label: 'Gacrux · mature' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Pulcherrima',    label: 'Pulcherrima · forward' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Achird',         label: 'Achird · friendly' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Zubenelgenubi',  label: 'Zubenelgenubi · casual' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Vindemiatrix',   label: 'Vindemiatrix · gentle' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Sadachbia',      label: 'Sadachbia · lively' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Sadaltager',     label: 'Sadaltager · knowledgeable' },
+  { provider: 'google', model: GOOGLE_MODEL, voice: 'Sulafat',        label: 'Sulafat · warm' },
 ];
 
 // ── Cartesia ──────────────────────────────────────────────────────────────

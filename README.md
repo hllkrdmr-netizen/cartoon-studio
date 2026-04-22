@@ -84,7 +84,7 @@ The app boots fine with no keys. Every key is optional; nothing is gated. If a k
 | Key | Provider · what it's good for |
 | --- | --- |
 | `ELEVENLABS_API_KEY` | ElevenLabs — best voice quality, native word-level timestamps. |
-| `GOOGLE_API_KEY` | Google Gemini 2.5 Flash — 15 distinctive voices. |
+| `GOOGLE_API_KEY` | Google Gemini 3.1 Flash TTS — 30 expressive voices. |
 | `CARTESIA_API_KEY` | Cartesia Sonic-3 — ultra-low latency, expressive character voices. |
 | `DEEPGRAM_API_KEY` | Deepgram Aura-2 — natural conversational voices. |
 | `HUME_API_KEY` | Hume Octave-2 — emotionally intelligent, prompt-steerable. |

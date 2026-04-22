@@ -60,7 +60,6 @@ export function mountPlay(root: HTMLElement): void {
         </div>
         <div class="flex items-center gap-3 shrink-0">
           <span id="status-pill" class="caption" style="font-size: 10.5px;"></span>
-          <button id="rebuild" class="btn-ghost">Rebuild</button>
           <button id="render" class="btn-primary">Render ↗ MP4</button>
         </div>
       </header>
@@ -119,7 +118,6 @@ export function mountPlay(root: HTMLElement): void {
   const restartBtn = root.querySelector<HTMLButtonElement>('#restart')!;
   const scrub = root.querySelector<HTMLInputElement>('#scrub')!;
   const timeEl = root.querySelector<HTMLSpanElement>('#time')!;
-  const rebuildBtn = root.querySelector<HTMLButtonElement>('#rebuild')!;
   const renderBtn = root.querySelector<HTMLButtonElement>('#render')!;
 
   playPauseBtn.addEventListener('click', () => {
@@ -144,10 +142,6 @@ export function mountPlay(root: HTMLElement): void {
     send('cartoonstudio:seek', { t });
     currentTime.value = t;
     isPlaying.value = false;
-  });
-  rebuildBtn.addEventListener('click', () => {
-    lastBuiltSig = '';
-    void reloadIframe();
   });
   renderBtn.addEventListener('click', async () => {
     status.value = { kind: 'rendering' };
@@ -213,6 +207,11 @@ export function mountPlay(root: HTMLElement): void {
     restartBtn.disabled = !ready;
     scrub.disabled = !ready;
     loadingOverlay.style.display = ready ? 'none' : '';
+  });
+  effect(() => {
+    const rendering = status.value.kind === 'rendering';
+    renderBtn.disabled = rendering;
+    renderBtn.textContent = rendering ? 'Rendering…' : 'Render ↗ MP4';
   });
   effect(() => {
     playPauseBtn.textContent = isPlaying.value ? 'Pause' : 'Play';

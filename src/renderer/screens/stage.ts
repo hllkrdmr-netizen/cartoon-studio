@@ -23,10 +23,10 @@ const SEED_VOICE_BY_ASSET_ID: Record<
   string,
   { model: string; voice: string }
 > = {
-  'character:bill': { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Charon' },
-  'character:ted':  { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Fenrir' },
-  'character:jane': { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Leda' },
-  'character:max':  { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Algenib' },
+  'character:bill': { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Charon' },
+  'character:ted':  { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Fenrir' },
+  'character:jane': { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Leda' },
+  'character:max':  { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Algenib' },
 };
 
 // The Stage screen — single "set up the show" screen that combines the

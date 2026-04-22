@@ -45,7 +45,7 @@ export const API_KEYS_TTS: readonly ApiKeySpec[] = [
     id: 'GOOGLE_API_KEY',
     label: 'Google Gemini',
     purpose:
-      'Gemini 2.5 Flash TTS — 15 distinctive voices. Needs OpenAI key for timestamp fallback.',
+      'Gemini 3.1 Flash TTS — 30 expressive voices. Needs OpenAI key for timestamp fallback.',
     url: 'https://aistudio.google.com/apikey',
   },
   {
