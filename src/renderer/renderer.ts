@@ -34,7 +34,7 @@ root.innerHTML = `
         <span class="shrink-0" style="width: 10px; height: 10px; background: var(--color-accent);"></span>
         <span class="font-display font-semibold truncate" style="font-size: 18px; letter-spacing: -0.01em;">Agent Park</span>
         <span class="caption shrink-0 hidden md:inline-flex" style="padding-left: 12px; border-left: 1px solid var(--color-hairline); margin-left: 4px;">
-          CARTOON<br/>DIALOGUE STUDIO
+          2D ANIMATED<br/>CARTOON STUDIO
         </span>
       </a>
 

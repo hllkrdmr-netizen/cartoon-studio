@@ -2,7 +2,7 @@
   "name": "agent-park",
   "productName": "Agent Park",
   "version": "0.1.0",
-  "description": "Open-source desktop editor for generating animated, lip-synced cartoon dialogue scenes.",
+  "description": "An open-source desktop studio for making 2D animated cartoon shows. Write a script, pick voices, place characters, render to MP4.",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {

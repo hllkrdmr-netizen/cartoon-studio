@@ -1,6 +1,8 @@
 # Agent Park
 
-A tiny animation studio on your desktop. Write a script, pick voices, drop characters onto a scene, hit render — out the other side comes a lip-synced cartoon dialogue clip as MP4. South-Park-style cutout characters, vowel-shape mouth cues, GSAP-driven composition, MP4 export.
+### Create your own 2D animated cartoon show.
+
+An open-source desktop studio for making 2D animated cartoon shows. Write a script, pick voices, place characters, render to MP4.
 
 ![Agent Park preview](docs/hero.png)
 
