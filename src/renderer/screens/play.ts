@@ -34,13 +34,13 @@ window.addEventListener('message', (ev) => {
     duration?: number;
     t?: number;
   } | null;
-  if (!d?.type?.startsWith('agentpark:')) return;
-  if (d.type === 'agentpark:ready') {
+  if (!d?.type?.startsWith('cartoonstudio:')) return;
+  if (d.type === 'cartoonstudio:ready') {
     isReady.value = true;
     if (typeof d.duration === 'number') totalDuration.value = d.duration;
-  } else if (d.type === 'agentpark:tick' && typeof d.t === 'number') {
+  } else if (d.type === 'cartoonstudio:tick' && typeof d.t === 'number') {
     currentTime.value = d.t;
-  } else if (d.type === 'agentpark:ended') {
+  } else if (d.type === 'cartoonstudio:ended') {
     isPlaying.value = false;
     currentTime.value = totalDuration.value;
   }
@@ -125,23 +125,23 @@ export function mountPlay(root: HTMLElement): void {
   playPauseBtn.addEventListener('click', () => {
     if (!isReady.value) return;
     if (isPlaying.value) {
-      send('agentpark:pause');
+      send('cartoonstudio:pause');
       isPlaying.value = false;
     } else {
-      send('agentpark:play');
+      send('cartoonstudio:play');
       isPlaying.value = true;
     }
   });
   restartBtn.addEventListener('click', () => {
     if (!isReady.value) return;
-    send('agentpark:restart');
+    send('cartoonstudio:restart');
     isPlaying.value = true;
     currentTime.value = 0;
   });
   scrub.addEventListener('input', () => {
     if (!isReady.value || totalDuration.value === 0) return;
     const t = (parseInt(scrub.value, 10) / 1000) * totalDuration.value;
-    send('agentpark:seek', { t });
+    send('cartoonstudio:seek', { t });
     currentTime.value = t;
     isPlaying.value = false;
   });

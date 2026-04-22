@@ -1,6 +1,6 @@
 {
-  "name": "agent-park",
-  "productName": "Agent Park",
+  "name": "cartoon-studio",
+  "productName": "Cartoon Studio",
   "version": "0.1.0",
   "description": "An open-source desktop studio for making 2D animated cartoon shows. Write a script, pick voices, place characters, render to MP4.",
   "main": ".vite/build/main.js",

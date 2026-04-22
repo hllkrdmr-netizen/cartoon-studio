@@ -28,9 +28,9 @@ export type MouthLocation = {
 
 // Models — chosen for the trade-off between quality and cost. Override via
 // env if you want to experiment.
-const DIALOGUE_MODEL = process.env.AGENT_PARK_DIALOGUE_MODEL ?? 'gpt-4o';
-const REWRITE_MODEL = process.env.AGENT_PARK_REWRITE_MODEL ?? 'gpt-4o-mini';
-const VISION_MODEL = process.env.AGENT_PARK_VISION_MODEL ?? 'gpt-4o';
+const DIALOGUE_MODEL = process.env.CARTOON_STUDIO_DIALOGUE_MODEL ?? 'gpt-4o';
+const REWRITE_MODEL = process.env.CARTOON_STUDIO_REWRITE_MODEL ?? 'gpt-4o-mini';
+const VISION_MODEL = process.env.CARTOON_STUDIO_VISION_MODEL ?? 'gpt-4o';
 
 function client(): OpenAI {
   const apiKey = settings.get('OPENAI_API_KEY');

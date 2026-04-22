@@ -2,7 +2,7 @@ import { app } from 'electron';
 
 // GitHub repo to poll for new releases. Placeholder until publication —
 // override via env var so users / forks don't have to edit code.
-const REPO = process.env.AGENT_PARK_UPDATE_REPO ?? 'btpod/agent-park';
+const REPO = process.env.CARTOON_STUDIO_UPDATE_REPO ?? 'btpod/cartoon-studio';
 
 export type UpdateAvailable = {
   latest: string; // version string without leading 'v'
@@ -33,7 +33,7 @@ export async function checkForUpdate(): Promise<UpdateAvailable | null> {
       {
         headers: {
           Accept: 'application/vnd.github+json',
-          'User-Agent': 'agent-park-update-check',
+          'User-Agent': 'cartoon-studio-update-check',
           'X-GitHub-Api-Version': '2022-11-28',
         },
         signal: controller.signal,

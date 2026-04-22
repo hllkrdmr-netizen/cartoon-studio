@@ -7,7 +7,7 @@
 // All checking happens in the main process and fails safely there — this
 // module just decides whether to show UI based on the result.
 
-const DISMISSED_KEY = 'agentpark.updateDismissed';
+const DISMISSED_KEY = 'cartoonstudio.updateDismissed';
 
 export async function setupUpdateBanner(): Promise<void> {
   let info: Awaited<ReturnType<typeof window.api.checkForUpdate>>;
@@ -37,7 +37,7 @@ function showBanner(info: {
     <div class="ap-update-inner">
       <span class="caption caption-accent">UPDATE · v${escapeHtml(info.latest)}</span>
       <span class="rule" style="width: 14px;"></span>
-      <span class="ap-update-msg">A new cut of Agent Park is available.</span>
+      <span class="ap-update-msg">A new cut of Cartoon Studio is available.</span>
       <span class="caption" style="margin-left: auto;">CURRENT v${escapeHtml(info.current)}</span>
       <a href="${escapeAttr(info.url)}" target="_blank" rel="noreferrer" class="btn-ghost">Download ↗</a>
       <button data-dismiss class="ap-update-x" aria-label="Dismiss">&times;</button>

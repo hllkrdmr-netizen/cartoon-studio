@@ -285,12 +285,12 @@ const PLAYER_JS = `(function () {
         a.play().catch(function () {});
       }
     });
-    window.parent.postMessage({ type: 'agentpark:tick', t: t }, '*');
+    window.parent.postMessage({ type: 'cartoonstudio:tick', t: t }, '*');
     if (t < duration) {
       rafId = requestAnimationFrame(tick);
     } else {
       doPause();
-      window.parent.postMessage({ type: 'agentpark:ended' }, '*');
+      window.parent.postMessage({ type: 'cartoonstudio:ended' }, '*');
     }
   }
   function doPlay() {
@@ -337,14 +337,14 @@ const PLAYER_JS = `(function () {
   window.addEventListener('message', function (ev) {
     var d = ev.data || {};
     if (!d.type) return;
-    if (d.type === 'agentpark:play') doPlay();
-    else if (d.type === 'agentpark:pause') doPause();
-    else if (d.type === 'agentpark:seek')
+    if (d.type === 'cartoonstudio:play') doPlay();
+    else if (d.type === 'cartoonstudio:pause') doPause();
+    else if (d.type === 'cartoonstudio:seek')
       doSeek(typeof d.t === 'number' ? d.t : 0);
-    else if (d.type === 'agentpark:restart') { doSeek(0); doPlay(); }
+    else if (d.type === 'cartoonstudio:restart') { doSeek(0); doPlay(); }
   });
   window.parent.postMessage(
-    { type: 'agentpark:ready', duration: duration },
+    { type: 'cartoonstudio:ready', duration: duration },
     '*',
   );
 })();

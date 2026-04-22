@@ -1,10 +1,10 @@
-# Agent Park
+# Cartoon Studio
 
 ### Create your own 2D animated cartoon show.
 
 An open-source desktop studio for making 2D animated cartoon shows. Write a script, pick voices, place characters, render to MP4.
 
-![Agent Park preview](docs/hero.png)
+![Cartoon Studio preview](docs/hero.png)
 
 > **Status — v0.1.** End-to-end pipeline working. Built as a desktop app (Electron) with editorial UI (Newsreader / Switzer / Departure Mono). Bring your own API keys; no telemetry, no cloud.
 
@@ -31,15 +31,15 @@ Where the model lives — and where it doesn't:
 
 ## Built on
 
-Agent Park stands on four open-source pieces:
+Cartoon Studio stands on four open-source pieces:
 
 ### Speech SDK · [github.com/Jellypod-Inc/speech-sdk](https://github.com/Jellypod-Inc/speech-sdk)
 
-Provider-agnostic TypeScript TTS. One `generateSpeech({ model, voice, text })` call works across **13 providers** (ElevenLabs, OpenAI, Google Gemini, Cartesia, Deepgram, Hume, Inworld, Fish Audio, Murf, Resemble, fal, Mistral, xAI). Returns audio + word-level timestamps where the provider supports them natively, transcribes via Whisper as a fallback otherwise. Built and maintained by [Jellypod](https://jellypod.ai). The whole reason Agent Park can switch voice providers with a dropdown.
+Provider-agnostic TypeScript TTS. One `generateSpeech({ model, voice, text })` call works across **13 providers** (ElevenLabs, OpenAI, Google Gemini, Cartesia, Deepgram, Hume, Inworld, Fish Audio, Murf, Resemble, fal, Mistral, xAI). Returns audio + word-level timestamps where the provider supports them natively, transcribes via Whisper as a fallback otherwise. Built and maintained by [Jellypod](https://jellypod.ai). The whole reason Cartoon Studio can switch voice providers with a dropdown.
 
 ### HyperFrames · [github.com/heygen-com/hyperframes](https://github.com/heygen-com/hyperframes)
 
-Renders HTML compositions to MP4 via headless Chrome + GSAP timelines + ffmpeg. Agent Park writes a paused GSAP timeline (mouth `.set()` calls per cue), HyperFrames seeks it frame by frame, screenshots, and muxes audio.
+Renders HTML compositions to MP4 via headless Chrome + GSAP timelines + ffmpeg. Cartoon Studio writes a paused GSAP timeline (mouth `.set()` calls per cue), HyperFrames seeks it frame by frame, screenshots, and muxes audio.
 
 ### Recraft V4 · [fal.ai/models/fal-ai/recraft/v4/text-to-vector](https://fal.ai/models/fal-ai/recraft/v4/text-to-vector)
 
@@ -47,7 +47,7 @@ Generates SVG characters and scenes from a text prompt. We hint a flat construct
 
 ### Preston Blair lip-sync system · inspired by [Rhubarb](https://github.com/DanielSWolf/rhubarb-lip-sync)
 
-The 9 mouth shapes (X closed · A–H open variants) are the same catalog Rhubarb popularized. Agent Park doesn't bundle Rhubarb — instead it derives cues from word timestamps via a deterministic vowel-per-word heuristic, which is faster, regenerates instantly when text changes, and works without phoneme-level analysis. Rhubarb itself is excellent if you want true phoneme-driven sync; check it out.
+The 9 mouth shapes (X closed · A–H open variants) are the same catalog Rhubarb popularized. Cartoon Studio doesn't bundle Rhubarb — instead it derives cues from word timestamps via a deterministic vowel-per-word heuristic, which is faster, regenerates instantly when text changes, and works without phoneme-level analysis. Rhubarb itself is excellent if you want true phoneme-driven sync; check it out.
 
 ## Install — manual (developer build)
 
@@ -62,8 +62,8 @@ That's it. `ffmpeg` and Chrome are bundled — no `brew install` / `winget insta
 ### Run
 
 ```bash
-git clone https://github.com/btpod/agent-park.git
-cd agent-park
+git clone https://github.com/btpod/cartoon-studio.git
+cd cartoon-studio
 npm install      # also downloads chrome-headless-shell (~190 MB) into resources/chrome
 npm start
 ```
@@ -82,7 +82,7 @@ Produces a Squirrel installer on Windows, a `.zip` containing the `.app` on macO
 
 ## Bring your own API keys
 
-Agent Park stores nothing of yours, ships nothing of mine. Every API key lives encrypted in your OS keyring (macOS Keychain · Windows DPAPI · Linux GNOME Libsecret / KWallet) via Electron's `safeStorage`. The settings file (`settings.json` in the app's userData directory) holds only ciphertext, with file mode `0600` on Unix. The renderer process never sees plaintext keys — only a boolean "is this set" map. You can audit all of this in the **Settings → SC.SEC · Key Vault** panel.
+Cartoon Studio stores nothing of yours, ships nothing of mine. Every API key lives encrypted in your OS keyring (macOS Keychain · Windows DPAPI · Linux GNOME Libsecret / KWallet) via Electron's `safeStorage`. The settings file (`settings.json` in the app's userData directory) holds only ciphertext, with file mode `0600` on Unix. The renderer process never sees plaintext keys — only a boolean "is this set" map. You can audit all of this in the **Settings → SC.SEC · Key Vault** panel.
 
 | Key | Used for |
 | --- | --- |
