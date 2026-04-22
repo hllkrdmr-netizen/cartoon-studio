@@ -1,21 +1,32 @@
 // Editorial-style toast notifications.
 //
 // Replaces window.alert (which is ugly in Electron and disabled outright
-// for window.prompt). Stacks bottom-right, fades in/out, auto-dismisses
-// success/info, persists error/warning until the user closes them.
+// for window.prompt). Stacks bottom-right, fades in/out, all kinds auto-
+// dismiss — errors linger longer because they carry more to read, but
+// nothing piles up silently in the corner. Hover pauses the timer so a
+// user can finish reading without racing the clock.
 //
 // For "missing API key" errors specifically, surfaces an "Open Settings"
 // action button so the user goes straight to the fix.
 
 type Kind = 'error' | 'warning' | 'success' | 'info';
 
+// Auto-dismiss windows per kind (ms). Error gets the longest read time;
+// success/info go quickly since they confirm something the user just did.
+const DEFAULT_DURATION_MS: Record<Kind, number> = {
+  error: 8000,
+  warning: 6000,
+  success: 4000,
+  info: 4000,
+};
+
 type NotifyOptions = {
   kind: Kind;
   message: string;
   // Optional follow-up action — appears as a small primary button.
   action?: { label: string; onClick: () => void };
-  // Auto-dismiss after this many ms. 0 = persist. Defaults: 0 for
-  // error/warning, 4500 for success/info.
+  // Override the auto-dismiss window in ms. Pass 0 to make a toast
+  // persist until manually closed — use sparingly.
   duration?: number;
 };
 
@@ -72,8 +83,7 @@ export function notify(opts: NotifyOptions): void {
   // rAF before flipping the show class so the transition runs.
   requestAnimationFrame(() => el.classList.add('ap-notify-show'));
 
-  const defaultDuration = opts.kind === 'error' || opts.kind === 'warning' ? 0 : 4500;
-  const duration = opts.duration ?? defaultDuration;
+  const duration = opts.duration ?? DEFAULT_DURATION_MS[opts.kind];
   let timer: ReturnType<typeof setTimeout> | null = null;
   if (duration > 0) {
     timer = setTimeout(remove, duration);

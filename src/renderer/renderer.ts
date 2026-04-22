@@ -9,6 +9,7 @@ import { mountDialogue } from './screens/dialogue';
 import { mountStage } from './screens/stage';
 import { mountPlay } from './screens/play';
 import { mountShowPicker } from './showPicker';
+import { maybeShowOnboarding } from './onboarding';
 
 // Wire the toast system to the settings panel so missing-key errors can
 // surface a one-click "Open Settings" action.
@@ -144,6 +145,10 @@ void loadDefaults();
 // show" if the user has none. Auto-save stays gated until this resolves
 // so the placeholder never persists.
 void bootShows();
+// First-run gate: if no API keys are stored, show a blocking welcome
+// panel that walks the user through saving OpenAI (required) plus a
+// short menu of optional providers before they land on Stage.
+void maybeShowOnboarding();
 // Quietly checks GitHub Releases on launch; only renders a banner if a
 // newer version exists and hasn't been dismissed. Skipped in dev builds.
 void setupUpdateBanner();

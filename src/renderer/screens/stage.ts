@@ -16,17 +16,17 @@ import { VOICES, defaultVoice, findVoice } from '../../shared/voices';
 
 // Seed voices for the four bundled default characters. Keyed by the asset
 // id that resources.ts generates from the SVG filename. All four are on
-// Google Gemini so a user with a single GOOGLE_API_KEY can play the full
-// demo cast without juggling providers — male voices for Bill/Ted/Max
-// (Max is the dog, gravelly fits), female for Jane.
+// OpenAI so a user with a single OPENAI_API_KEY — the one key required for
+// dialogue writing anyway — can play the full demo cast without adding a
+// second provider. Onyx (deep) fits Max the dog; Nova is Jane.
 const SEED_VOICE_BY_ASSET_ID: Record<
   string,
   { model: string; voice: string }
 > = {
-  'character:bill': { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Charon' },
-  'character:ted':  { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Fenrir' },
-  'character:jane': { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Leda' },
-  'character:max':  { model: 'google/gemini-3.1-flash-tts-preview', voice: 'Algenib' },
+  'character:bill': { model: 'openai/gpt-4o-mini-tts', voice: 'ash' },
+  'character:ted':  { model: 'openai/gpt-4o-mini-tts', voice: 'verse' },
+  'character:jane': { model: 'openai/gpt-4o-mini-tts', voice: 'nova' },
+  'character:max':  { model: 'openai/gpt-4o-mini-tts', voice: 'onyx' },
 };
 
 // The Stage screen — single "set up the show" screen that combines the
