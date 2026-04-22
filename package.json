@@ -11,6 +11,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
+    "rig": "npx -y tsx --env-file=.env scripts/rig-svg.ts",
     "setup:chrome": "node -e \"require('fs').existsSync('./resources/chrome/chrome-headless-shell') || require('child_process').execSync('npx -y @puppeteer/browsers install chrome-headless-shell@stable --path ./resources/chrome', { stdio: 'inherit' })\"",
     "postinstall": "npm run setup:chrome"
   },

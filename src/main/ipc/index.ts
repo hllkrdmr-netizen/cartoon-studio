@@ -10,9 +10,10 @@ import { buildComposition } from '../composition';
 import { previewUrl, audioFileUrl } from '../previewServer';
 import { listUserAssets, saveUserAsset, deleteUserAsset } from '../userAssets';
 import { generateCharacter, generateScene } from '../recraft';
-import { rigSvg, applyMouthRigAt } from '../svgRig';
+import { rigSvg } from '../svgRig';
 import { renderSvgToPng } from '../renderSvg';
-import { generateDialogue, rewriteLine, detectMouthInImage } from '../llm';
+import { generateDialogue, rewriteLine, buildOpenAIClient } from '../llm';
+import { rigCharacterWithVision } from '../rigPipeline';
 import { renderShow } from '../render';
 import { checkForUpdate } from '../updater';
 import { dialog, BrowserWindow, shell } from 'electron';
@@ -66,31 +67,27 @@ export function registerIpcHandlers(): void {
         if (heur.rigged) {
           svg = heur.svg;
         } else if (settings.has('OPENAI_API_KEY')) {
-          // Fall back to vision LLM: render the SVG to PNG, ask Claude to
-          // locate the mouth, then place the rig at the returned bbox.
+          // Same vision pipeline the generate flow uses: detect mouth +
+          // face bbox, geometric removal, scaled rig, optional verify-and-
+          // retry when confidence is low.
           try {
-            const png = await renderSvgToPng(raw);
-            const loc = await detectMouthInImage(png);
-            if (loc.found && (loc.width > 0 || loc.height > 0)) {
-              const llm = applyMouthRigAt(
-                raw,
-                loc.x,
-                loc.y,
-                loc.width,
-                loc.height,
-              );
-              if (llm.rigged) {
-                svg = llm.svg;
-                if (!llm.replaced) {
-                  warning =
-                    'Mouth located via LLM but no underlying path was removed; the static mouth may show through under the lip-sync animation.';
-                }
-              } else {
+            const initialRaster = await renderSvgToPng(raw, 1024);
+            const result = await rigCharacterWithVision(raw, {
+              initialRaster,
+              rerasterize: (s) => renderSvgToPng(s, 1024),
+              openai: buildOpenAIClient(),
+            });
+            if (result.status === 'rigged') {
+              svg = result.svg;
+              if (result.removedPaths === 0) {
                 warning =
-                  'LLM returned a mouth location but the SVG had no parsable viewBox to anchor the rig to.';
+                  'Mouth located via LLM but no underlying path was removed; the static mouth may show through under the lip-sync animation.';
+              } else if (result.reason) {
+                warning = result.reason;
               }
             } else {
               warning =
+                result.reason ??
                 'LLM could not see a mouth on this SVG. The character will appear but lip sync will not animate.';
             }
           } catch (err) {
