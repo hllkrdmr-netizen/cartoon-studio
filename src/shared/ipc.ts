@@ -74,16 +74,10 @@ export type IpcApi = {
   llmGenerateDialogue: (args: {
     premise: string;
     cast: Array<{ id: string; name: string }>;
-    lineCount: number;
-  }) => Promise<
-    Array<{
-      speakerId: string;
-      text: string;
-      provider: string;
-      model: string;
-      voice: string;
-    }>
-  >;
+    // Undefined → "auto" — the model picks a natural length for the premise
+    // within guardrails. A number → exact line count.
+    lineCount?: number;
+  }) => Promise<Array<{ speakerId: string; text: string }>>;
   llmRewriteLine: (args: {
     text: string;
     instruction: string;

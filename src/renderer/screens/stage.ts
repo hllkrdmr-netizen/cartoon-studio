@@ -12,6 +12,22 @@ import {
 } from '../library';
 import { currentScreen, currentShow, mutate, selection } from '../state';
 import { svgToDataUri, uid } from '../util';
+import { VOICES, defaultVoice, findVoice } from '../../shared/voices';
+
+// Seed voices for the four bundled default characters. Keyed by the asset
+// id that resources.ts generates from the SVG filename. All four are on
+// Google Gemini so a user with a single GOOGLE_API_KEY can play the full
+// demo cast without juggling providers — male voices for Bill/Ted/Max
+// (Max is the dog, gravelly fits), female for Jane.
+const SEED_VOICE_BY_ASSET_ID: Record<
+  string,
+  { model: string; voice: string }
+> = {
+  'character:bill': { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Charon' },
+  'character:ted':  { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Fenrir' },
+  'character:jane': { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Leda' },
+  'character:max':  { model: 'google/gemini-2.5-flash-preview-tts', voice: 'Algenib' },
+};
 
 // The Stage screen — single "set up the show" screen that combines the
 // library browser (top strip — characters AND scenes both visible) with
@@ -408,7 +424,9 @@ export function mountStage(root: HTMLElement): void {
     castSummary.textContent = `${charCount} CHAR${charCount === 1 ? '' : 'S'} · ${sceneName.toUpperCase()}`;
   });
 
-  // Selection bar under the library strip.
+  // Selection bar under the library strip. Voice picking lives on the
+  // Dialogue tab (cast-voices strip) — keeping a second picker here just
+  // duplicated state without adding clarity.
   effect(() => {
     const sel = selection.value;
     const show = currentShow.value;
@@ -532,6 +550,15 @@ function renderLibraryTile(
 
 function addCharacterToShow(asset: DefaultAsset): void {
   const existing = currentShow.value.characters.length;
+  // Seeded defaults (Bill/Ted/Jane/Max) get a hand-picked Gemini voice with
+  // the right gender. Anything else (user-uploaded/generated) falls back
+  // to round-robin across the full catalog so a fresh cast still gets
+  // distinct voices out of the box.
+  const seed = SEED_VOICE_BY_ASSET_ID[asset.id];
+  const v =
+    (seed ? findVoice(seed.model, seed.voice) : null) ??
+    VOICES[existing % VOICES.length] ??
+    defaultVoice();
   mutate((s) => ({
     ...s,
     characters: [
@@ -544,6 +571,9 @@ function addCharacterToShow(asset: DefaultAsset): void {
         y: 0.7,
         scale: 1,
         z: existing,
+        provider: v.provider,
+        model: v.model,
+        voice: v.voice,
       },
     ],
   }));

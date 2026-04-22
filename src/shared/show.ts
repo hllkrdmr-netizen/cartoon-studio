@@ -8,6 +8,12 @@ export const CharacterSchema = z.object({
   y: z.number().min(0).max(1),
   scale: z.number().min(0.1).max(3),
   z: z.number().int(),
+  // Per-character voice mapping. Used as the default when adding a line
+  // (manual or AI-generated) so the dialogue tab doesn't reset to a global
+  // default each time. Per-line overrides still live on DialogueLine.
+  provider: z.string(),
+  model: z.string(),
+  voice: z.string(),
 });
 
 export const SceneSchema = z.object({

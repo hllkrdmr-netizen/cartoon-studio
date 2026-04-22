@@ -3,6 +3,7 @@ import { currentScreen, currentShow, mutate } from '../state';
 import { uid } from '../util';
 import { openFormModal } from '../modal';
 import { notify, notifyError } from '../notify';
+import type { Character, Show } from '../../shared/show';
 import {
   PROVIDERS,
   type Provider,
@@ -53,6 +54,12 @@ let linesRoot: HTMLDivElement | null = null;
 let emptyEl: HTMLParagraphElement | null = null;
 let noCastEl: HTMLDivElement | null = null;
 let topBar: HTMLElement | null = null;
+let castSection: HTMLElement | null = null;
+let castRowsRoot: HTMLDivElement | null = null;
+// Rebuild the cast-voices block only when the character set or any
+// character's name/voice changes. Typing in a line textarea doesn't move
+// this signature, so we don't clobber an open dropdown mid-interaction.
+let castVoicesSig = '';
 
 export function mountDialogue(root: HTMLElement): void {
   root.innerHTML = `
@@ -89,6 +96,15 @@ export function mountDialogue(root: HTMLElement): void {
           <button data-goto="stage" class="underline" style="color: var(--color-accent);">Stage</button> screen before writing dialogue.
         </span>
       </div>
+      <section id="cast-voices" class="hidden shrink-0"
+               style="padding: 14px 32px 14px; border-bottom: 1px solid var(--color-hairline); background: var(--color-surface);">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="caption caption-accent">CAST · VOICES</span>
+          <span class="rule" style="flex: 1;"></span>
+          <span class="caption" style="color: var(--color-quiet); font-size: 9.5px;">NEW LINES INHERIT THESE · CHANGE PER-LINE BELOW</span>
+        </div>
+        <div id="cast-voices-rows" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 6px 18px;"></div>
+      </section>
       <div id="lines" class="flex-1 overflow-y-auto" style="padding: 8px 32px 32px;"></div>
       <p id="lines-empty" class="hidden italic" style="padding: 24px 32px 40px; color: var(--color-muted); font-family: var(--font-display); font-size: 16px;">
         No lines yet. Begin with <span style="color: var(--color-text);">+ Line</span> or <span style="color: var(--color-accent);">✦ Write with AI</span>.
@@ -100,6 +116,8 @@ export function mountDialogue(root: HTMLElement): void {
   linesRoot = root.querySelector<HTMLDivElement>('#lines')!;
   emptyEl = root.querySelector<HTMLParagraphElement>('#lines-empty')!;
   noCastEl = root.querySelector<HTMLDivElement>('#no-cast')!;
+  castSection = root.querySelector<HTMLElement>('#cast-voices')!;
+  castRowsRoot = root.querySelector<HTMLDivElement>('#cast-voices-rows')!;
 
   root
     .querySelector<HTMLButtonElement>('[data-goto="stage"]')!
@@ -110,15 +128,19 @@ export function mountDialogue(root: HTMLElement): void {
   root
     .querySelector<HTMLButtonElement>('#add-line')!
     .addEventListener('click', () => {
-      const v = defaultVoice();
-      const speakerId = currentShow.value.characters[0]?.id ?? '';
+      // Seed from the first character's configured voice so the user doesn't
+      // have to reset the provider/voice dropdowns on every new line. Falls
+      // back to the global default only if the cast is empty (the button is
+      // disabled in that state, but belt-and-suspenders).
+      const first = currentShow.value.characters[0];
+      const v = first ?? defaultVoice();
       mutate((s) => ({
         ...s,
         dialogue: [
           ...s.dialogue,
           {
             id: uid('line'),
-            speakerId,
+            speakerId: first?.id ?? '',
             text: '',
             provider: v.provider,
             model: v.model,
@@ -192,6 +214,7 @@ function reconcile(): void {
   if (!linesRoot || !emptyEl || !noCastEl) return;
   const show = currentShow.value;
 
+  reconcileCastVoices(show);
   noCastEl.classList.toggle('hidden', show.characters.length > 0);
   // Disable Write/Add when there's no cast — meaningless without speakers.
   const buttons = topBar?.querySelectorAll<HTMLButtonElement>(
@@ -263,6 +286,93 @@ function reconcile(): void {
       card.textArea.value = line.text;
     }
   });
+}
+
+function reconcileCastVoices(show: Show): void {
+  if (!castSection || !castRowsRoot) return;
+  if (show.characters.length === 0) {
+    castSection.classList.add('hidden');
+    castRowsRoot.innerHTML = '';
+    castVoicesSig = '';
+    return;
+  }
+  castSection.classList.remove('hidden');
+  const sig = show.characters
+    .map((c) => `${c.id}|${c.name}|${c.provider}|${c.model}|${c.voice}`)
+    .join(';');
+  if (sig === castVoicesSig) return;
+  castVoicesSig = sig;
+  castRowsRoot.innerHTML = show.characters
+    .map((c) => renderCastVoiceRow(c))
+    .join('');
+  // Wire handlers after innerHTML replacement. Each row's selects carry the
+  // character id on a data attribute so we can route the change back to state.
+  castRowsRoot
+    .querySelectorAll<HTMLSelectElement>('[data-cast-provider]')
+    .forEach((sel) => {
+      sel.addEventListener('change', () => {
+        const charId = sel.dataset.castProvider!;
+        const p = sel.value as Provider;
+        const v = defaultVoiceForProvider(p);
+        updateCharacterVoice(charId, {
+          provider: v.provider,
+          model: v.model,
+          voice: v.voice,
+        });
+      });
+    });
+  castRowsRoot
+    .querySelectorAll<HTMLSelectElement>('[data-cast-voice]')
+    .forEach((sel) => {
+      sel.addEventListener('change', () => {
+        const charId = sel.dataset.castVoice!;
+        const [model, voice] = sel.value.split('|');
+        const v = findVoice(model, voice);
+        if (!v) return;
+        updateCharacterVoice(charId, {
+          provider: v.provider,
+          model: v.model,
+          voice: v.voice,
+        });
+      });
+    });
+}
+
+function renderCastVoiceRow(c: Character): string {
+  const provider = c.provider as Provider;
+  return `
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="font-display italic truncate" style="font-size: 13px; color: var(--color-text); min-width: 68px; max-width: 120px;">${escapeHtml(c.name)}</span>
+      <select data-cast-provider="${c.id}"
+              style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; padding: 4px 20px 4px 6px; min-width: 100px;">
+        ${PROVIDERS.map(
+          (p) =>
+            `<option value="${p.id}"${p.id === provider ? ' selected' : ''}>${p.label}</option>`,
+        ).join('')}
+      </select>
+      <select data-cast-voice="${c.id}"
+              style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em; padding: 4px 20px 4px 6px; flex: 1; min-width: 140px;">
+        ${voicesForProvider(provider)
+          .map(
+            (v) =>
+              `<option value="${v.model}|${v.voice}"${
+                v.model === c.model && v.voice === c.voice ? ' selected' : ''
+              }>${escapeHtml(v.label)}</option>`,
+          )
+          .join('')}
+      </select>
+    </div>
+  `;
+}
+
+function updateCharacterVoice(
+  id: string,
+  patch: { provider: string; model: string; voice: string },
+): void {
+  mutate((s) => ({
+    ...s,
+    characters: s.characters.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+  }));
 }
 
 function createLineCard(
@@ -344,7 +454,22 @@ function createLineCard(
   wireMiniPlayer(el, audioEl);
 
   speakerSel.addEventListener('change', () => {
-    updateLine(lineId, { speakerId: speakerSel.value });
+    // Follow the speaker's configured voice. The whole point of the
+    // character→voice mapping is that lines auto-match; if the user wants
+    // a custom voice for this specific line, they can still change it
+    // via the voice dropdown right after.
+    const speakerId = speakerSel.value;
+    const c = currentShow.value.characters.find((x) => x.id === speakerId);
+    if (c) {
+      updateLine(lineId, {
+        speakerId,
+        provider: c.provider,
+        model: c.model,
+        voice: c.voice,
+      });
+    } else {
+      updateLine(lineId, { speakerId });
+    }
   });
   providerSel.addEventListener('change', () => {
     const p = providerSel.value as Provider;
@@ -456,7 +581,7 @@ async function runWriteDialogue(): Promise<void> {
   const result = await openFormModal({
     title: 'Write dialogue with AI',
     description:
-      'Give the model a premise and a line count. It writes the lines as an array of cards — audio is generated separately (per-line ▶ or Generate all audio).',
+      'Give the model a premise. Leave the line count blank to let it pick a natural length, or pin it to a specific number. Audio is generated separately (per-line ▶ or Generate all audio).',
     fields: [
       {
         id: 'premise',
@@ -469,20 +594,23 @@ async function runWriteDialogue(): Promise<void> {
       },
       {
         id: 'lineCount',
-        label: 'How many lines?',
+        label: 'How many lines? (optional)',
         type: 'number',
-        defaultValue: 6,
         min: 1,
-        max: 50,
-        required: true,
+        max: 20,
+        required: false,
+        placeholder: 'Auto — model picks 4-16 based on the premise',
       },
     ],
     submitLabel: 'Write',
   });
   if (!result) return;
   const premise = result.premise;
-  const lineCount = parseInt(result.lineCount, 10);
-  if (!Number.isFinite(lineCount) || lineCount <= 0) return;
+  // Empty field → undefined → auto. A value in range pins the exact count.
+  const raw = result.lineCount.trim();
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  const lineCount =
+    Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   if (writeBtn) writeBtn.disabled = true;
   writeSpinner?.classList.remove('hidden');
   if (writeLabel) writeLabel.textContent = 'Writing…';
@@ -492,18 +620,25 @@ async function runWriteDialogue(): Promise<void> {
       cast: show.characters.map((c) => ({ id: c.id, name: c.name })),
       lineCount,
     });
+    // Fill in voice from the matching character record. The LLM returned
+    // speakerId/text only — voice mapping lives on the Stage tab.
+    const byId = new Map(show.characters.map((c) => [c.id, c]));
+    const fallback = show.characters[0];
     mutate((s) => ({
       ...s,
       dialogue: [
         ...s.dialogue,
-        ...lines.map((l) => ({
-          id: uid('line'),
-          speakerId: l.speakerId,
-          text: l.text,
-          provider: l.provider,
-          model: l.model,
-          voice: l.voice,
-        })),
+        ...lines.map((l) => {
+          const c = byId.get(l.speakerId) ?? fallback;
+          return {
+            id: uid('line'),
+            speakerId: c.id,
+            text: l.text,
+            provider: c.provider,
+            model: c.model,
+            voice: c.voice,
+          };
+        }),
       ],
     }));
   } catch (err) {

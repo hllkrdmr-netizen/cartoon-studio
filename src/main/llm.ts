@@ -2,16 +2,12 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { settings } from './settings';
-import { VOICES, defaultVoice } from '../shared/voices';
 
 type Cast = Array<{ id: string; name: string }>;
 
 export type GeneratedLine = {
   speakerId: string;
   text: string;
-  provider: string;
-  model: string;
-  voice: string;
 };
 
 // Models — chosen for the trade-off between quality and cost. Override via
@@ -37,19 +33,11 @@ export function buildOpenAIClient(): OpenAI {
   return client();
 }
 
-const DIALOGUE_SYSTEM = `You are a comedy writer for short animated dialogues in the style of South Park: punchy, conversational, irreverent. Each line is delivered by exactly one character. Keep lines under 25 words; aim for a natural back-and-forth rhythm. Avoid stage directions, parentheticals, or speaker prefixes — just the spoken text. Match each line to a speakerId from the provided cast.`;
+const DIALOGUE_SYSTEM = `You are a comedy writer for short animated dialogues in the style of South Park: punchy, conversational, irreverent. Each line is delivered by exactly one character. Keep lines under 25 words; aim for a natural back-and-forth rhythm. Avoid stage directions, parentheticals, or speaker prefixes — just the spoken text. Match each line to a speakerId from the provided cast.
+
+When the user doesn't specify a line count, scale the length to the premise: 4-6 lines for a quick gag, 8-12 for a fuller bit, up to 16 if the premise genuinely calls for it. Never pad — end when the exchange lands. Don't exceed 20 lines.`;
 
 const REWRITE_SYSTEM = `You are an editor for short animated dialogues. You rewrite a single spoken line per the user's instruction without adding stage directions, parentheticals, or quotation marks. Return only the rewritten line as plain text — no explanation, no preamble.`;
-
-function assignVoice(idx: number): {
-  provider: string;
-  model: string;
-  voice: string;
-} {
-  // Round-robin across the catalog so multi-speaker shows get distinct voices.
-  const v = VOICES[idx % VOICES.length] ?? defaultVoice();
-  return { provider: v.provider, model: v.model, voice: v.voice };
-}
 
 const DialogueSchema = z.object({
   lines: z
@@ -59,13 +47,14 @@ const DialogueSchema = z.object({
         text: z.string(),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(20),
 });
 
 export async function generateDialogue(args: {
   premise: string;
   cast: Cast;
-  lineCount: number;
+  lineCount?: number;
 }): Promise<GeneratedLine[]> {
   if (args.cast.length === 0) {
     throw new Error(
@@ -74,12 +63,16 @@ export async function generateDialogue(args: {
   }
 
   const c = client();
+  const lengthDirective =
+    args.lineCount && args.lineCount > 0
+      ? `Write exactly ${args.lineCount} lines of dialogue.`
+      : `Write a dialogue whose length fits the premise — follow the guidance in the system prompt.`;
   const userPrompt = `Premise: ${args.premise}
 
 Cast (use these speakerId values verbatim):
 ${args.cast.map((c) => `- ${c.id} → ${c.name}`).join('\n')}
 
-Write ${args.lineCount} lines of dialogue. Distribute lines across all listed speakers.`;
+${lengthDirective} Distribute lines across all listed speakers.`;
 
   const completion = await c.chat.completions.parse({
     model: DIALOGUE_MODEL,
@@ -100,21 +93,17 @@ Write ${args.lineCount} lines of dialogue. Distribute lines across all listed sp
     );
   }
 
-  // Map speakerId → consistent voice. Fall back to the first cast member if
-  // the model returns an unknown id.
-  const speakerVoice = new Map<string, ReturnType<typeof assignVoice>>();
-  args.cast.forEach((c, i) => speakerVoice.set(c.id, assignVoice(i)));
+  // Voice assignment is a renderer concern — each character carries its
+  // own voice mapping. The LLM only produces speakerId/text; callers fill
+  // in provider/model/voice from the character record. Unknown speakerIds
+  // fall back to the first cast member so we never emit a dangling line.
+  const knownIds = new Set(args.cast.map((c) => c.id));
   const fallback = args.cast[0].id;
 
-  return parsed.lines.map((l) => {
-    const speakerId = speakerVoice.has(l.speakerId) ? l.speakerId : fallback;
-    const voice = speakerVoice.get(speakerId)!;
-    return {
-      speakerId,
-      text: l.text.trim(),
-      ...voice,
-    };
-  });
+  return parsed.lines.map((l) => ({
+    speakerId: knownIds.has(l.speakerId) ? l.speakerId : fallback,
+    text: l.text.trim(),
+  }));
 }
 
 export async function rewriteLine(args: {
