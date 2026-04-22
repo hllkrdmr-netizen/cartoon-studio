@@ -9,6 +9,8 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.settingsSet, id, value),
   settingsDelete: (id) =>
     ipcRenderer.invoke(IPC_CHANNELS.settingsDelete, id),
+  settingsStorageInfo: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.settingsStorageInfo),
 
   defaultsList: () => ipcRenderer.invoke(IPC_CHANNELS.defaultsList),
   userAssetsList: () => ipcRenderer.invoke(IPC_CHANNELS.userAssetsList),
@@ -27,6 +29,8 @@ const api: IpcApi = {
 
   ttsGenerateLine: (req) =>
     ipcRenderer.invoke(IPC_CHANNELS.ttsGenerateLine, req),
+  audioUrl: (showId, audioFile) =>
+    ipcRenderer.invoke(IPC_CHANNELS.audioUrl, showId, audioFile),
 
   buildComposition: (showId) =>
     ipcRenderer.invoke(IPC_CHANNELS.buildComposition, showId),
@@ -39,6 +43,8 @@ const api: IpcApi = {
     ipcRenderer.invoke(IPC_CHANNELS.llmRewriteLine, args),
 
   renderShow: (showId) => ipcRenderer.invoke(IPC_CHANNELS.renderShow, showId),
+  revealInFolder: (p) => ipcRenderer.invoke(IPC_CHANNELS.revealInFolder, p),
+  checkForUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdate),
   onRenderProgress: (cb) => {
     const handler = (_: unknown, p: unknown) =>
       cb(p as Parameters<typeof cb>[0]);

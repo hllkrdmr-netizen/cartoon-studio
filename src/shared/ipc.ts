@@ -18,6 +18,16 @@ export type IpcApi = {
   settingsGetAll: () => Promise<Record<ApiKeyId, boolean>>;
   settingsSet: (id: ApiKeyId, value: string) => Promise<void>;
   settingsDelete: (id: ApiKeyId) => Promise<void>;
+  // Returns storage backend metadata (which OS keyring is in use, where the
+  // ciphertext file lives) for the security panel in Settings. Never
+  // returns key plaintext — that stays in the main process only.
+  settingsStorageInfo: () => Promise<{
+    backend: string;
+    backendLabel: string;
+    available: boolean;
+    insecure: boolean;
+    path: string;
+  }>;
 
   defaultsList: () => Promise<DefaultAsset[]>;
   userAssetsList: () => Promise<DefaultAsset[]>;
@@ -40,6 +50,7 @@ export type IpcApi = {
     model: string;
     voice: string;
     provider: string;
+    force?: boolean;
   }) => Promise<{
     audioFile: string;
     words: Array<{ text: string; start: number; end: number }>;
@@ -47,6 +58,8 @@ export type IpcApi = {
     cached: boolean;
     hash: string;
   }>;
+
+  audioUrl: (showId: string, audioFile: string) => Promise<string>;
 
   buildComposition: (showId: string) => Promise<{
     outDir: string;
@@ -78,6 +91,15 @@ export type IpcApi = {
   }) => Promise<string>;
 
   renderShow: (showId: string) => Promise<string>;
+  revealInFolder: (path: string) => Promise<void>;
+  // Polls GitHub Releases for a newer version. Returns null on any
+  // failure (network, 404, parse error) — never throws.
+  checkForUpdate: () => Promise<{
+    latest: string;
+    current: string;
+    url: string;
+    notes: string;
+  } | null>;
   onRenderProgress: (
     cb: (
       p:
@@ -94,6 +116,7 @@ export const IPC_CHANNELS = {
   settingsGetAll: 'settings:getAll',
   settingsSet: 'settings:set',
   settingsDelete: 'settings:delete',
+  settingsStorageInfo: 'settings:storageInfo',
   defaultsList: 'defaults:list',
   userAssetsList: 'assets:list',
   generateCharacter: 'assets:generateCharacter',
@@ -105,10 +128,13 @@ export const IPC_CHANNELS = {
   showList: 'show:list',
   showDelete: 'show:delete',
   ttsGenerateLine: 'tts:generateLine',
+  audioUrl: 'tts:audioUrl',
   buildComposition: 'composition:build',
   previewUrl: 'preview:url',
   llmGenerateDialogue: 'llm:generateDialogue',
   llmRewriteLine: 'llm:rewriteLine',
   renderShow: 'render:start',
+  revealInFolder: 'shell:revealInFolder',
+  checkForUpdate: 'updater:check',
   onRenderProgress: 'render:progress',
 } as const satisfies Record<keyof IpcApi, string>;

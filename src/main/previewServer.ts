@@ -72,5 +72,16 @@ export function startPreviewServer(): Promise<number> {
 
 export async function previewUrl(showId: string): Promise<string> {
   const p = await startPreviewServer();
-  return `http://127.0.0.1:${p}/${showId}/index.html`;
+  // `?preview=1` tells the composition's inline bootstrapper to load the
+  // RAF/audio player. HyperFrames' render loads the page without the flag
+  // so the inline scripts stay free of non-deterministic APIs.
+  return `http://127.0.0.1:${p}/${showId}/index.html?preview=1`;
+}
+
+export async function audioFileUrl(
+  showId: string,
+  audioFile: string,
+): Promise<string> {
+  const p = await startPreviewServer();
+  return `http://127.0.0.1:${p}/${showId}/${encodeURIComponent(audioFile)}`;
 }

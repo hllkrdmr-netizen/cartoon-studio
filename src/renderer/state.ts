@@ -1,11 +1,24 @@
 import { signal, batch, effect } from '@preact/signals-core';
 import { emptyShow, type Show } from '../shared/show';
 
+export type Screen = 'stage' | 'dialogue' | 'play';
+export const currentScreen = signal<Screen>('stage');
+
 export const currentShow = signal<Show>(emptyShow());
 export const selection = signal<{
   type: 'character' | 'line' | 'scene' | null;
   id: string | null;
 }>({ type: null, id: null });
+
+// Selecting a character only makes sense on the Stage screen — the Delete-key
+// shortcut and Moveable resize handles are stage-scoped. Drop the selection
+// when leaving Stage so a stray Backspace on (say) Dialogue can't delete a
+// character that the user can't see.
+effect(() => {
+  if (currentScreen.value !== 'stage' && selection.value.type === 'character') {
+    selection.value = { type: null, id: null };
+  }
+});
 
 let saveTimer: number | undefined;
 const SAVE_DEBOUNCE_MS = 500;

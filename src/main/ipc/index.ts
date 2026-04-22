@@ -7,14 +7,15 @@ import { listDefaults } from '../resources';
 import { saveShow, loadShow, listShows, deleteShow } from '../showStore';
 import { generateLine } from '../tts';
 import { buildComposition } from '../composition';
-import { previewUrl } from '../previewServer';
+import { previewUrl, audioFileUrl } from '../previewServer';
 import { listUserAssets, saveUserAsset, deleteUserAsset } from '../userAssets';
 import { generateCharacter, generateScene } from '../recraft';
 import { rigSvg, applyMouthRigAt } from '../svgRig';
 import { renderSvgToPng } from '../renderSvg';
 import { generateDialogue, rewriteLine, detectMouthInImage } from '../llm';
 import { renderShow } from '../render';
-import { dialog, BrowserWindow } from 'electron';
+import { checkForUpdate } from '../updater';
+import { dialog, BrowserWindow, shell } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -28,6 +29,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.settingsDelete, (_e, id: ApiKeyId) =>
     settings.delete(id),
   );
+  ipcMain.handle(IPC_CHANNELS.settingsStorageInfo, () => settings.storageInfo());
 
   ipcMain.handle(IPC_CHANNELS.defaultsList, () => listDefaults());
   ipcMain.handle(IPC_CHANNELS.userAssetsList, () => listUserAssets());
@@ -118,6 +120,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.showDelete, (_e, id: string) => deleteShow(id));
 
   ipcMain.handle(IPC_CHANNELS.ttsGenerateLine, (_e, req) => generateLine(req));
+  ipcMain.handle(
+    IPC_CHANNELS.audioUrl,
+    (_e, showId: string, audioFile: string) => audioFileUrl(showId, audioFile),
+  );
   ipcMain.handle(IPC_CHANNELS.buildComposition, async (_e, showId: string) => {
     const show = await loadShow(showId);
     return buildComposition(show);
@@ -136,4 +142,10 @@ export function registerIpcHandlers(): void {
     if (!win) throw new Error('no window');
     return renderShow(showId, win);
   });
+
+  ipcMain.handle(IPC_CHANNELS.revealInFolder, (_e, p: string) => {
+    shell.showItemInFolder(p);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.checkForUpdate, () => checkForUpdate());
 }
