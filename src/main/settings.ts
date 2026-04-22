@@ -37,28 +37,6 @@ const store = new Store<SettingsSchema>({
   defaults: { apiKeys: {} },
 });
 
-// One-time rename of legacy ApiKeyIds to match the env vars each SDK
-// actually reads. Runs at module load; no-op once everything's
-// migrated. Drop after a few releases.
-(function migrateLegacyKeyIds(): void {
-  const renames: Array<[string, string]> = [
-    ['ELEVEN_API_KEY', 'ELEVENLABS_API_KEY'],
-    ['GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
-    ['FAL_KEY', 'FAL_API_KEY'],
-  ];
-  const apiKeys = { ...((store.get('apiKeys') ?? {}) as Record<string, string>) };
-  let changed = false;
-  for (const [oldId, newId] of renames) {
-    if (apiKeys[oldId] === undefined) continue;
-    if (apiKeys[newId] === undefined) {
-      apiKeys[newId] = apiKeys[oldId];
-    }
-    delete apiKeys[oldId];
-    changed = true;
-  }
-  if (changed) store.set('apiKeys', apiKeys);
-})();
-
 const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
 
 export type StorageBackend =

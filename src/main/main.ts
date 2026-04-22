@@ -7,13 +7,6 @@ if (started) {
   app.quit();
 }
 
-// Pin the app name + userData path so dev and packaged builds use the
-// same directory. In packaged builds Electron reads productName from
-// Info.plist; in dev it would otherwise fall back to the npm `name`
-// field ("cartoon-studio") and split state across two dirs.
-app.setName('Cartoon Studio');
-app.setPath('userData', path.join(app.getPath('appData'), 'Cartoon Studio'));
-
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1280,
