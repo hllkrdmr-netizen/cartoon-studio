@@ -2,7 +2,7 @@ import { app } from 'electron';
 
 // GitHub repo to poll for new releases. Placeholder until publication —
 // override via env var so users / forks don't have to edit code.
-const REPO = process.env.CARTOON_STUDIO_UPDATE_REPO ?? 'btpod/cartoon-studio';
+const REPO = process.env.CARTOON_STUDIO_UPDATE_REPO ?? 'Jellypod-Inc/cartoon-studio';
 
 export type UpdateAvailable = {
   latest: string; // version string without leading 'v'

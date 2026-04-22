@@ -9,12 +9,11 @@
 An open-source desktop studio — script in, MP4 out. Bring your own API keys; no telemetry, no cloud.
 
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/status-prototype-FF5B1F?style=flat-square)](#status)
 [![Electron](https://img.shields.io/badge/built_with-Electron-47848F?style=flat-square&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![Node](https://img.shields.io/badge/Node-≥20-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
-[![Stars](https://img.shields.io/github/stars/btpod/cartoon-studio?style=flat-square&logo=github&label=stars)](https://github.com/btpod/cartoon-studio/stargazers)
+[![Stars](https://img.shields.io/github/stars/Jellypod-Inc/cartoon-studio?style=flat-square&logo=github&label=stars)](https://github.com/Jellypod-Inc/cartoon-studio/stargazers)
 
-**[Quick start](#quick-start)** · **[Three screens](#three-screens-three-jobs)** · **[How it works](#how-it-works)** · **[Built on](#built-on)** · **[API keys](#bring-your-own-api-keys)** · **[License](#license)**
+**[Quick start](#quick-start)** · **[Three screens](#three-screens-three-jobs)** · **[How it works](#how-it-works)** · **[Built on](#built-on)** · **[API keys](#bring-your-own-api-keys)**
 
 </div>
 
@@ -27,7 +26,7 @@ An open-source desktop studio — script in, MP4 out. Bring your own API keys; n
 Pre-built binaries are on the way. For now, run from source — the only thing you need is **Node ≥ 20**. `ffmpeg` and Chrome are bundled.
 
 ```bash
-git clone https://github.com/btpod/cartoon-studio.git
+git clone https://github.com/Jellypod-Inc/cartoon-studio.git
 cd cartoon-studio
 npm install      # also downloads chrome-headless-shell (~190 MB)
 npm start
@@ -43,12 +42,14 @@ npm start
 
 ## How it works
 
-```
-script ─→ TTS w/ word timestamps ─→ vowel→mouth cues
-                                              ↓
-                            SVG character w/ 9-shape mouth rig
-                                              ↓
-                composition HTML ─→ HyperFrames render ─→ .mp4
+```mermaid
+flowchart TD
+    A([Script]) --> B[TTS · word timestamps]
+    D([SVG character · 9-shape mouth rig]) --> E
+    B --> C[Mouth cues from vowels]
+    C --> E[Composition HTML]
+    E --> F[HyperFrames render]
+    F --> G([MP4])
 ```
 
 What runs through an LLM and what doesn't:
@@ -120,16 +121,12 @@ Forge is configured to:
 - Bundle `resources/defaults/` as `extraResource` so default characters & scenes ship with the app.
 - Unpack `node_modules/hyperframes/**` from the asar so the render child process can resolve the CLI entry.
 
-## Status
-
-**v0.1 — prototype.** End-to-end pipeline working. Built as a desktop app (Electron) with editorial UI (Newsreader / Switzer / Departure Mono). Bring your own keys; no telemetry, no cloud. Pre-built binaries and code-signing are next.
-
-## License
-
-[Apache 2.0](LICENSE).
-
 ---
 
 <div align="center">
-  <sub>Sponsored by <a href="https://jellypod.ai"><b>Jellypod</b></a> — the team behind <a href="https://github.com/Jellypod-Inc/speech-sdk">Speech SDK</a>.</sub>
+
+Released under the **[Apache License 2.0](LICENSE)**
+
+<sub>Sponsored by <a href="https://jellypod.ai"><b>Jellypod</b></a> — the team behind <a href="https://github.com/Jellypod-Inc/speech-sdk">Speech SDK</a>.</sub>
+
 </div>
