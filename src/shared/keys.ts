@@ -1,13 +1,14 @@
+// Internal IDs match the env var each SDK reads exactly — see env.ts.
 export type ApiKeyId =
-  | 'ELEVEN_API_KEY'
-  | 'GOOGLE_GENERATIVE_AI_API_KEY'
+  | 'ELEVENLABS_API_KEY'
   | 'OPENAI_API_KEY'
+  | 'GOOGLE_API_KEY'
   | 'CARTESIA_API_KEY'
   | 'DEEPGRAM_API_KEY'
   | 'HUME_API_KEY'
   | 'FISH_AUDIO_API_KEY'
   | 'INWORLD_API_KEY'
-  | 'FAL_KEY';
+  | 'FAL_API_KEY';
 
 export type ApiKeySpec = {
   id: ApiKeyId;
@@ -18,7 +19,7 @@ export type ApiKeySpec = {
 
 export const API_KEYS: readonly ApiKeySpec[] = [
   {
-    id: 'ELEVEN_API_KEY',
+    id: 'ELEVENLABS_API_KEY',
     label: 'ElevenLabs',
     purpose: 'TTS — best voice quality, native word-level timestamps.',
     url: 'https://elevenlabs.io/app/settings/api-keys',
@@ -31,7 +32,7 @@ export const API_KEYS: readonly ApiKeySpec[] = [
     url: 'https://platform.openai.com/api-keys',
   },
   {
-    id: 'GOOGLE_GENERATIVE_AI_API_KEY',
+    id: 'GOOGLE_API_KEY',
     label: 'Google Gemini',
     purpose:
       'Gemini 2.5 Flash TTS — 15 distinctive voices. Needs OpenAI key for timestamp fallback.',
@@ -68,7 +69,7 @@ export const API_KEYS: readonly ApiKeySpec[] = [
     url: 'https://platform.inworld.ai/',
   },
   {
-    id: 'FAL_KEY',
+    id: 'FAL_API_KEY',
     label: 'Fal',
     purpose: 'Recraft V4 character & scene generation.',
     url: 'https://fal.ai/dashboard/keys',

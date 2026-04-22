@@ -152,10 +152,10 @@ async function elevenLabsWithTimestamps(req: {
   words: Word[];
   durationMs: number;
 }> {
-  const apiKey = settings.get('ELEVEN_API_KEY');
+  const apiKey = settings.get('ELEVENLABS_API_KEY');
   if (!apiKey) {
     throw new Error(
-      'Set ELEVEN_API_KEY in Settings to use ElevenLabs voices.',
+      'Set ELEVENLABS_API_KEY in Settings to use ElevenLabs voices.',
     );
   }
   const modelId = req.model.replace(/^elevenlabs\//, '');

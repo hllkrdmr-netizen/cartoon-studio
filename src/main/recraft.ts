@@ -6,9 +6,9 @@ import { rigSvg, stripMagenta, normalizeViewBox } from './svgRig';
 let configured = false;
 function configure(): void {
   applyKeysToEnv();
-  const key = settings.get('FAL_KEY');
+  const key = settings.get('FAL_API_KEY');
   if (!key) {
-    throw new Error('FAL_KEY is not set. Add it in Settings to generate.');
+    throw new Error('FAL_API_KEY is not set. Add it in Settings to generate.');
   }
   if (!configured) {
     fal.config({ credentials: key });

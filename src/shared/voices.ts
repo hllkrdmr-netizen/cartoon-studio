@@ -32,9 +32,9 @@ export type ProviderSpec = {
   label: string;
   // Env key that must be set in Settings for this provider to work.
   envKey:
-    | 'ELEVEN_API_KEY'
+    | 'ELEVENLABS_API_KEY'
     | 'OPENAI_API_KEY'
-    | 'GOOGLE_GENERATIVE_AI_API_KEY'
+    | 'GOOGLE_API_KEY'
     | 'CARTESIA_API_KEY'
     | 'DEEPGRAM_API_KEY'
     | 'HUME_API_KEY'
@@ -48,7 +48,7 @@ export const PROVIDERS: readonly ProviderSpec[] = [
   {
     id: 'elevenlabs',
     label: 'ElevenLabs',
-    envKey: 'ELEVEN_API_KEY',
+    envKey: 'ELEVENLABS_API_KEY',
     note: 'Best voice quality · native word-level timestamps (no Whisper needed).',
   },
   {
@@ -60,7 +60,7 @@ export const PROVIDERS: readonly ProviderSpec[] = [
   {
     id: 'google',
     label: 'Google Gemini',
-    envKey: 'GOOGLE_GENERATIVE_AI_API_KEY',
+    envKey: 'GOOGLE_API_KEY',
     note: 'Gemini 2.5 Flash TTS · 15 distinctive voices · Whisper fallback for timestamps.',
   },
   {
@@ -256,7 +256,7 @@ export function voicesForProvider(p: Provider): VoiceOption[] {
 
 export function defaultVoice(): VoiceOption {
   // George — warm British male on ElevenLabs. Native timestamps, works with
-  // a single ELEVEN_API_KEY (no Whisper fallback needed).
+  // a single ELEVENLABS_API_KEY (no Whisper fallback needed).
   return ELEVENLABS_VOICES[5];
 }
 
