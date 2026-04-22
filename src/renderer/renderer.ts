@@ -4,10 +4,11 @@ import { openSettings } from './settings';
 import { loadDefaults } from './library';
 import { registerOpenSettings } from './notify';
 import { setupUpdateBanner } from './updater';
-import { currentScreen, currentShow, type Screen } from './state';
+import { currentScreen, bootShows, type Screen } from './state';
 import { mountDialogue } from './screens/dialogue';
 import { mountStage } from './screens/stage';
 import { mountPlay } from './screens/play';
+import { mountShowPicker } from './showPicker';
 
 // Wire the toast system to the settings panel so missing-key errors can
 // surface a one-click "Open Settings" action.
@@ -43,7 +44,7 @@ root.innerHTML = `
       <nav id="screen-tabs" class="flex items-center" style="height: 100%;"></nav>
 
       <div class="ml-auto flex items-center gap-3 shrink-0">
-        <span id="show-name" class="caption caption-bright truncate" style="max-width: 260px;"></span>
+        <div id="show-picker"></div>
         <button id="open-settings" class="btn-ghost" title="API keys &amp; preferences">
           Settings
         </button>
@@ -57,13 +58,7 @@ document
   .getElementById('open-settings')
   ?.addEventListener('click', openSettings);
 
-effect(() => {
-  const el = document.getElementById('show-name');
-  if (el) {
-    const name = currentShow.value.name;
-    el.textContent = name ? `PROJECT · ${name}` : '';
-  }
-});
+mountShowPicker(document.getElementById('show-picker')!);
 
 // --- Tab nav ---
 const tabsRoot = document.getElementById('screen-tabs')!;
@@ -145,6 +140,10 @@ effect(() => {
 });
 
 void loadDefaults();
+// Restores the last-opened show from disk, or seeds a fresh "Untitled
+// show" if the user has none. Auto-save stays gated until this resolves
+// so the placeholder never persists.
+void bootShows();
 // Quietly checks GitHub Releases on launch; only renders a banner if a
 // newer version exists and hasn't been dismissed. Skipped in dev builds.
 void setupUpdateBanner();

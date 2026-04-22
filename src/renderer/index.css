@@ -731,6 +731,195 @@ select {
   background: var(--color-accent);
 }
 
+/* Show picker — header dropdown for switching between projects.
+   Editorial chip with a caret; clicking opens a panel with the current
+   show's name + actions, a list of other shows to switch to, and a
+   "+ New show" button at the bottom. */
+.show-picker {
+  position: relative;
+  display: inline-flex;
+}
+.show-picker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  background: transparent;
+  border: 1px solid var(--color-hairline);
+  cursor: pointer;
+  color: var(--color-text);
+  transition: border-color 120ms var(--ease-snap), background 120ms var(--ease-snap);
+  max-width: 320px;
+}
+.show-picker-chip:hover {
+  border-color: var(--color-hairline-strong);
+  background: var(--color-surface);
+}
+.show-picker-chip[aria-expanded='true'] {
+  border-color: var(--color-accent);
+}
+.show-picker-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 14.5px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.show-picker-caret {
+  font-size: 10px;
+  color: var(--color-quiet);
+  margin-left: 2px;
+}
+.show-picker-panel {
+  /* Portaled to document.body so it isn't trapped in the header's
+     `isolation: isolate` stacking context. Positioned via JS from the
+     chip's bounding rect (see showPicker.ts > positionPanel). */
+  position: fixed;
+  min-width: 320px;
+  max-width: 420px;
+  background: var(--color-ink);
+  border: 1px solid var(--color-hairline-strong);
+  box-shadow: 0 18px 60px -18px rgba(0, 0, 0, 0.7);
+  z-index: 45; /* Above normal content; below modal (z-50). */
+  padding: 0;
+}
+.show-picker-panel[hidden] {
+  display: none;
+}
+/* "+ New show" gets the prominent treatment — orange accent text,
+   slightly bigger row at the top of the dropdown so users find it
+   immediately. */
+.show-picker-section-new {
+  padding: 10px 14px;
+}
+.show-picker-section {
+  padding: 12px 14px;
+}
+.show-picker-section-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-muted);
+}
+.show-picker-divider {
+  height: 1px;
+  background: var(--color-hairline);
+}
+.show-picker-current {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.show-picker-current-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.show-picker-current-actions {
+  display: flex;
+  gap: 6px;
+}
+.show-picker-action {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--color-quiet);
+  border: 1px solid var(--color-hairline);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 120ms var(--ease-snap), border-color 120ms var(--ease-snap);
+}
+.show-picker-action:hover {
+  color: var(--color-text);
+  border-color: var(--color-hairline-strong);
+}
+.show-picker-action-danger:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.show-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.show-picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text);
+  transition: background 120ms var(--ease-snap);
+}
+.show-picker-item:hover {
+  background: var(--color-surface-2);
+}
+.show-picker-item-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.show-picker-item-meta {
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+.show-picker-new {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  cursor: pointer;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background 120ms var(--ease-snap), border-color 120ms var(--ease-snap), color 120ms var(--ease-snap);
+}
+.show-picker-new:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.show-picker-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 600;
+}
+.show-picker-new:hover .show-picker-plus {
+  background: var(--color-accent-soft);
+}
+
 /* Library skeleton tile — shown in the Stage library grid while a Recraft
    generation is in flight. Subtle background pulse + a spinner. */
 .ap-pending-tile {
