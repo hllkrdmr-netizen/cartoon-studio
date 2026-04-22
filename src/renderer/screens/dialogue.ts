@@ -67,8 +67,13 @@ export function mountDialogue(root: HTMLElement): void {
           <p class="caption mt-2" style="color: var(--color-muted);">WRITE THE LINES · ASSIGN VOICES · GENERATE AUDIO</p>
         </div>
         <div class="flex gap-2 shrink-0">
-          <button id="write-llm" class="btn-ghost" style="border-color: var(--color-accent); color: var(--color-accent);">
-            ✦ Write with AI
+          <button id="write-llm" class="btn-ghost inline-flex items-center gap-2 disabled:cursor-wait" style="border-color: var(--color-accent); color: var(--color-accent);">
+            <span id="write-llm-spinner" class="ap-spinner hidden" style="width: 11px; height: 11px;"></span>
+            <span id="write-llm-label">✦ Write with AI</span>
+          </button>
+          <button id="clear-lines" class="btn-ghost" title="Delete all dialogue lines"
+                  style="border-color: var(--color-danger); color: var(--color-danger);">
+            Clear all
           </button>
           <button id="add-line" class="btn-ghost">+ Line</button>
           <button id="generate-all" class="btn-primary inline-flex items-center gap-2 disabled:cursor-wait">
@@ -124,6 +129,22 @@ export function mountDialogue(root: HTMLElement): void {
     });
 
   root
+    .querySelector<HTMLButtonElement>('#clear-lines')!
+    .addEventListener('click', () => {
+      const count = currentShow.value.dialogue.length;
+      if (count === 0) return;
+      const confirmed = window.confirm(
+        `Delete all ${count} dialogue ${count === 1 ? 'line' : 'lines'}? This cannot be undone.`,
+      );
+      if (!confirmed) return;
+      mutate((s) => ({ ...s, dialogue: [] }));
+      notify({
+        kind: 'info',
+        message: `Cleared ${count} dialogue ${count === 1 ? 'line' : 'lines'}.`,
+      });
+    });
+
+  root
     .querySelector<HTMLButtonElement>('#write-llm')!
     .addEventListener('click', runWriteDialogue);
 
@@ -174,7 +195,7 @@ function reconcile(): void {
   noCastEl.classList.toggle('hidden', show.characters.length > 0);
   // Disable Write/Add when there's no cast — meaningless without speakers.
   const buttons = topBar?.querySelectorAll<HTMLButtonElement>(
-    '#write-llm, #add-line, #generate-all',
+    '#write-llm, #clear-lines, #add-line, #generate-all',
   );
   buttons?.forEach((b) => {
     b.disabled = show.characters.length === 0;
@@ -419,6 +440,11 @@ function updateLine(
 }
 
 async function runWriteDialogue(): Promise<void> {
+  const writeBtn = topBar?.querySelector<HTMLButtonElement>('#write-llm') ?? null;
+  const writeSpinner =
+    topBar?.querySelector<HTMLSpanElement>('#write-llm-spinner') ?? null;
+  const writeLabel =
+    topBar?.querySelector<HTMLSpanElement>('#write-llm-label') ?? null;
   const show = currentShow.value;
   if (show.characters.length === 0) {
     notify({
@@ -457,6 +483,9 @@ async function runWriteDialogue(): Promise<void> {
   const premise = result.premise;
   const lineCount = parseInt(result.lineCount, 10);
   if (!Number.isFinite(lineCount) || lineCount <= 0) return;
+  if (writeBtn) writeBtn.disabled = true;
+  writeSpinner?.classList.remove('hidden');
+  if (writeLabel) writeLabel.textContent = 'Writing…';
   try {
     const lines = await window.api.llmGenerateDialogue({
       premise,
@@ -479,6 +508,10 @@ async function runWriteDialogue(): Promise<void> {
     }));
   } catch (err) {
     notifyError(err, 'Generate failed.');
+  } finally {
+    writeSpinner?.classList.add('hidden');
+    if (writeLabel) writeLabel.textContent = '✦ Write with AI';
+    if (writeBtn) writeBtn.disabled = false;
   }
 }
 

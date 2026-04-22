@@ -272,21 +272,8 @@ export function mountStage(root: HTMLElement): void {
         </header>
 
         <div class="flex-1 overflow-y-auto" style="padding: 0 18px 18px;">
-          <!-- CHARACTERS -->
-          <section data-lib-section="character" style="padding-top: 14px;">
-            <div class="flex items-center justify-between gap-2 mb-3">
-              <span class="caption">CHARACTERS</span>
-              <div class="flex items-center gap-1.5">
-                <button data-action="upload-character" class="lib-mini-btn" title="Upload SVG">↑</button>
-                <button data-action="generate-character" class="lib-mini-btn lib-mini-btn-accent" title="Generate with AI">+</button>
-              </div>
-            </div>
-            <div class="rule mb-3"></div>
-            <div data-lib-grid="character" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
-          </section>
-
           <!-- SCENES -->
-          <section data-lib-section="scene" style="padding-top: 24px;">
+          <section data-lib-section="scene" style="padding-top: 14px;">
             <div class="flex items-center justify-between gap-2 mb-3">
               <span class="caption">SCENES</span>
               <div class="flex items-center gap-1.5">
@@ -296,6 +283,19 @@ export function mountStage(root: HTMLElement): void {
             </div>
             <div class="rule mb-3"></div>
             <div data-lib-grid="scene" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+          </section>
+
+          <!-- CHARACTERS -->
+          <section data-lib-section="character" style="padding-top: 24px;">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="caption">CHARACTERS</span>
+              <div class="flex items-center gap-1.5">
+                <button data-action="upload-character" class="lib-mini-btn" title="Upload SVG">↑</button>
+                <button data-action="generate-character" class="lib-mini-btn lib-mini-btn-accent" title="Generate with AI">+</button>
+              </div>
+            </div>
+            <div class="rule mb-3"></div>
+            <div data-lib-grid="character" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
           </section>
         </div>
       </aside>
