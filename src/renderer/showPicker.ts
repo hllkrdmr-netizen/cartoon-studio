@@ -31,7 +31,7 @@ export function mountShowPicker(host: HTMLElement): void {
       <button class="show-picker-chip" data-toggle title="Switch show, rename, or create new" type="button">
         <span class="caption" style="color: var(--color-quiet);">SHOW</span>
         <span class="show-picker-name" data-name></span>
-        <span class="show-picker-caret" aria-hidden="true">▾</span>
+        <span class="show-picker-caret" aria-hidden="true"></span>
       </button>
     </div>
   `;

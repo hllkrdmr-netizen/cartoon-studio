@@ -770,9 +770,31 @@ select {
   max-width: 200px;
 }
 .show-picker-caret {
-  font-size: 10px;
-  color: var(--color-quiet);
+  position: relative;
+  display: inline-block;
+  width: 10px;
+  height: 8px;
   margin-left: 2px;
+  top: 1px;
+}
+.show-picker-caret::before,
+.show-picker-caret::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  width: 6px;
+  height: 1.5px;
+  background: var(--color-quiet);
+}
+.show-picker-caret::before {
+  left: 0;
+  transform: rotate(32deg);
+  transform-origin: right center;
+}
+.show-picker-caret::after {
+  right: 0;
+  transform: rotate(-32deg);
+  transform-origin: left center;
 }
 .show-picker-panel {
   /* Portaled to document.body so it isn't trapped in the header's
