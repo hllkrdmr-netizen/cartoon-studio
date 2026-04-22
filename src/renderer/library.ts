@@ -6,6 +6,27 @@ import { notify, notifyError } from './notify';
 export const defaults = signal<DefaultAsset[]>([]);
 export const userAssets = signal<DefaultAsset[]>([]);
 
+// In-flight generate/upload jobs. The library grid renders a skeleton tile
+// for each entry so the user knows something is happening — Recraft can
+// take 20-40s and uploads run vision-LLM mouth detection.
+export type PendingAsset = {
+  tempId: string;
+  type: 'character' | 'scene';
+  name: string;
+  source: 'generate' | 'upload';
+};
+export const pendingAssets = signal<PendingAsset[]>([]);
+
+let pendingCounter = 0;
+function pushPending(p: Omit<PendingAsset, 'tempId'>): string {
+  const tempId = `pending-${++pendingCounter}`;
+  pendingAssets.value = [...pendingAssets.value, { ...p, tempId }];
+  return tempId;
+}
+function popPending(tempId: string): void {
+  pendingAssets.value = pendingAssets.value.filter((p) => p.tempId !== tempId);
+}
+
 export async function loadDefaults(): Promise<void> {
   const [d, u] = await Promise.all([
     window.api.defaultsList(),
@@ -62,6 +83,7 @@ export async function generateAsset(type: 'character' | 'scene'): Promise<void> 
   if (!result) return;
   const prompt = result.prompt;
   const name = result.name || prompt.split(' ').slice(0, 3).join(' ');
+  const tempId = pushPending({ type, name, source: 'generate' });
   try {
     const a =
       type === 'character'
@@ -70,6 +92,8 @@ export async function generateAsset(type: 'character' | 'scene'): Promise<void> 
     userAssets.value = [...userAssets.value, a];
   } catch (err) {
     notifyError(err, 'Generate failed.');
+  } finally {
+    popPending(tempId);
   }
 }
 

@@ -4,6 +4,7 @@ import type { DefaultAsset } from '../../shared/ipc';
 import {
   defaults,
   userAssets,
+  pendingAssets,
   isUserAsset,
   uploadAsset,
   generateAsset,
@@ -366,14 +367,16 @@ export function mountStage(root: HTMLElement): void {
     const items = [...defaults.value, ...userAssets.value].filter(
       (a) => a.type === 'character',
     );
+    const pending = pendingAssets.value.filter((p) => p.type === 'character');
     charGrid.innerHTML = '';
-    if (items.length === 0) {
+    if (items.length === 0 && pending.length === 0) {
       const empty = emptyHint('NO CHARACTERS YET');
       empty.style.gridColumn = '1 / -1';
       charGrid.appendChild(empty);
       return;
     }
     for (const a of items) charGrid.appendChild(renderLibraryTile(a, false));
+    for (const p of pending) charGrid.appendChild(renderPendingTile(p.name, true));
   });
 
   // Scenes grid — 2-up. Selected scene gets the orange ring.
@@ -382,8 +385,9 @@ export function mountStage(root: HTMLElement): void {
     const items = [...defaults.value, ...userAssets.value].filter(
       (a) => a.type === 'scene',
     );
+    const pending = pendingAssets.value.filter((p) => p.type === 'scene');
     sceneGrid.innerHTML = '';
-    if (items.length === 0) {
+    if (items.length === 0 && pending.length === 0) {
       const empty = emptyHint('NO SCENES YET');
       empty.style.gridColumn = '1 / -1';
       sceneGrid.appendChild(empty);
@@ -393,6 +397,7 @@ export function mountStage(root: HTMLElement): void {
       const isSelected = a.id === selectedSceneId;
       sceneGrid.appendChild(renderLibraryTile(a, isSelected));
     }
+    for (const p of pending) sceneGrid.appendChild(renderPendingTile(p.name, false));
   });
 
   // Footer summary — quick at-a-glance count of show contents.
@@ -439,6 +444,24 @@ function emptyHint(text: string): HTMLParagraphElement {
   p.style.padding = '14px 6px';
   p.textContent = text;
   return p;
+}
+
+// Skeleton tile shown in the library grid while a Recraft generation is
+// in flight. Same dimensions as a real tile so the grid doesn't reflow
+// when the result lands.
+function renderPendingTile(name: string, isCharacter: boolean): HTMLDivElement {
+  const tile = document.createElement('div');
+  const aspectClass = isCharacter ? 'aspect-square w-full' : 'aspect-video w-full';
+  tile.className = 'relative flex flex-col gap-1.5 min-w-0';
+  tile.innerHTML = `
+    <div class="${aspectClass} relative overflow-hidden flex flex-col items-center justify-center gap-2 ap-pending-tile"
+         style="background: #0a0b0c; box-shadow: inset 0 0 0 1px var(--color-hairline);">
+      <div class="ap-spinner"></div>
+      <span class="caption" style="font-size: 9px; color: var(--color-quiet);">GENERATING</span>
+    </div>
+    <span class="truncate" style="font-family: var(--font-display); font-style: italic; font-weight: 400; font-size: 12.5px; color: var(--color-quiet); line-height: 1.2; padding: 0 1px;">${escapeHtml(name)}</span>
+  `;
+  return tile;
 }
 
 function renderLibraryTile(

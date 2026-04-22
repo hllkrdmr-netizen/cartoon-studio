@@ -731,6 +731,16 @@ select {
   background: var(--color-accent);
 }
 
+/* Library skeleton tile — shown in the Stage library grid while a Recraft
+   generation is in flight. Subtle background pulse + a spinner. */
+.ap-pending-tile {
+  animation: ap-pending-pulse 1.6s var(--ease-snap) infinite;
+}
+@keyframes ap-pending-pulse {
+  0%, 100% { background: #0a0b0c; }
+  50% { background: #15171a; }
+}
+
 /* Spinner — single orange ring, 1.1s, eased (not linear — even spinners
    can feel crafted). */
 @keyframes ap-spin {
