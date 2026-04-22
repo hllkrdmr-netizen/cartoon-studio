@@ -1,114 +1,117 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="Cartoon Studio" width="140" />
+
 # Cartoon Studio
 
-### Create your own 2D animated cartoon show.
+**Create your own 2D animated cartoon show.**
 
-An open-source desktop studio for making 2D animated cartoon shows. Write a script, pick voices, place characters, render to MP4.
+An open-source desktop studio — script in, MP4 out. Bring your own API keys; no telemetry, no cloud.
+
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/status-prototype-FF5B1F?style=flat-square)](#status)
+[![Electron](https://img.shields.io/badge/built_with-Electron-47848F?style=flat-square&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Node](https://img.shields.io/badge/Node-≥20-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Stars](https://img.shields.io/github/stars/btpod/cartoon-studio?style=flat-square&logo=github&label=stars)](https://github.com/btpod/cartoon-studio/stargazers)
+
+**[Quick start](#quick-start)** · **[Three screens](#three-screens-three-jobs)** · **[How it works](#how-it-works)** · **[Built on](#built-on)** · **[API keys](#bring-your-own-api-keys)** · **[License](#license)**
+
+</div>
+
+<br />
 
 ![Cartoon Studio preview](docs/hero.png)
 
-> **Status — v0.1.** End-to-end pipeline working. Built as a desktop app (Electron) with editorial UI (Newsreader / Switzer / Departure Mono). Bring your own API keys; no telemetry, no cloud.
+## Quick start
 
-## How it works
-
-```
-script  →  TTS (with word timestamps)  →  vowel-shape mouth cues
-                                                   ↓
-                              SVG character w/ 9-shape mouth rig
-                                                   ↓
-                  composition HTML  →  HyperFrames render  →  .mp4
-```
-
-Three screens, three jobs:
-
-- **Stage** — left sidebar holds the character + scene library (always visible). Main canvas is the 1920×1080 stage. Drag to position, any corner to resize, Delete to remove.
-- **Dialogue** — write the script. Per-line speaker, voice (87 voices across 8 providers), and text. Press ▶ to generate a fresh take and play it inline. Press ✦ Write with AI to generate the whole script from a premise.
-- **Play** — final-cut preview inside a film cabinet. Scrub, play, restart, render to MP4.
-
-Where the model lives — and where it doesn't:
-
-- **LLM** — script authoring (OpenAI), vision-based mouth detection on uploaded SVGs (OpenAI vision).
-- **Not LLM** — TTS, word-level alignment, mouth-cue generation (deterministic vowel heuristic), placement, composition, render. The output is reproducible from the same script + voices + characters.
-
-## Built on
-
-Cartoon Studio stands on four open-source pieces:
-
-### Speech SDK · [github.com/Jellypod-Inc/speech-sdk](https://github.com/Jellypod-Inc/speech-sdk)
-
-Provider-agnostic TypeScript TTS. One `generateSpeech({ model, voice, text })` call works across **13 providers** (ElevenLabs, OpenAI, Google Gemini, Cartesia, Deepgram, Hume, Inworld, Fish Audio, Murf, Resemble, fal, Mistral, xAI). Returns audio + word-level timestamps where the provider supports them natively, transcribes via Whisper as a fallback otherwise. Built and maintained by [Jellypod](https://jellypod.ai). The whole reason Cartoon Studio can switch voice providers with a dropdown.
-
-### HyperFrames · [github.com/heygen-com/hyperframes](https://github.com/heygen-com/hyperframes)
-
-Renders HTML compositions to MP4 via headless Chrome + GSAP timelines + ffmpeg. Cartoon Studio writes a paused GSAP timeline (mouth `.set()` calls per cue), HyperFrames seeks it frame by frame, screenshots, and muxes audio.
-
-### Recraft V4 · [fal.ai/models/fal-ai/recraft/v4/text-to-vector](https://fal.ai/models/fal-ai/recraft/v4/text-to-vector)
-
-Generates SVG characters and scenes from a text prompt. We hint a flat construction-paper style and use a magenta background plate so we can reliably strip it. Mouths on generated characters get auto-rigged via geometric heuristic; uploads that fail the heuristic fall back to vision-LLM detection.
-
-### Preston Blair lip-sync system · inspired by [Rhubarb](https://github.com/DanielSWolf/rhubarb-lip-sync)
-
-The 9 mouth shapes (X closed · A–H open variants) are the same catalog Rhubarb popularized. Cartoon Studio doesn't bundle Rhubarb — instead it derives cues from word timestamps via a deterministic vowel-per-word heuristic, which is faster, regenerates instantly when text changes, and works without phoneme-level analysis. Rhubarb itself is excellent if you want true phoneme-driven sync; check it out.
-
-## Install — manual (developer build)
-
-Pre-built binaries will be linked here once they're ready. For now, run from source:
-
-### Prerequisites
-
-- **Node.js ≥ 20** for `npm install` (the packaged app reuses Electron's bundled Node at runtime via `ELECTRON_RUN_AS_NODE`).
-
-That's it. `ffmpeg` and Chrome are bundled — no `brew install` / `winget install` step.
-
-### Run
+Pre-built binaries are on the way. For now, run from source — the only thing you need is **Node ≥ 20**. `ffmpeg` and Chrome are bundled.
 
 ```bash
 git clone https://github.com/btpod/cartoon-studio.git
 cd cartoon-studio
-npm install      # also downloads chrome-headless-shell (~190 MB) into resources/chrome
+npm install      # also downloads chrome-headless-shell (~190 MB)
 npm start
 ```
 
 `npm start` boots a Vite dev server for the renderer and an Electron process for main + preload, with HMR on the renderer. The `postinstall` script downloads chrome-headless-shell once for your host platform; rerun `npm run setup:chrome` if it gets stale or you switch architectures.
 
-### Build a binary for your machine
+## Three screens, three jobs
+
+- **Stage** — drag SVG characters onto a scene. Library on the left, 1920×1080 canvas on the right. Move, resize from any corner, <kbd>Delete</kbd> to remove.
+- **Dialogue** — write the script. Per-line speaker, voice (87 voices across 8 providers), and text. Press ▶ to generate a fresh take and play it inline. Press **✦ Write with AI** to author the whole script from a premise.
+- **Play** — final-cut preview inside a film cabinet. Scrub, play, restart, render to MP4.
+
+## How it works
+
+```
+script ─→ TTS w/ word timestamps ─→ vowel→mouth cues
+                                              ↓
+                            SVG character w/ 9-shape mouth rig
+                                              ↓
+                composition HTML ─→ HyperFrames render ─→ .mp4
+```
+
+What runs through an LLM and what doesn't:
+
+- **LLM** — script authoring (OpenAI), vision-based mouth detection on uploaded SVGs (OpenAI vision).
+- **Not LLM** — TTS, word-level alignment, mouth-cue generation (deterministic vowel heuristic), placement, composition, render. Output is reproducible from the same script + voices + characters.
+
+## Built on
+
+| Layer | Project | What it gives us |
+| --- | --- | --- |
+| **Speech** | [Speech SDK](https://github.com/Jellypod-Inc/speech-sdk) | One `generateSpeech()` call across **13 providers** with native or Whisper-derived word timestamps. Built and maintained by [Jellypod](https://jellypod.ai). The reason Cartoon Studio can swap voice providers from a dropdown. |
+| **Render** | [HyperFrames](https://github.com/heygen-com/hyperframes) | HTML composition → MP4 via headless Chrome + GSAP timelines + ffmpeg. We hand it a paused timeline with `.set()` calls per mouth cue; HyperFrames seeks frame by frame and muxes the audio. |
+| **SVG art** | [Recraft V4](https://fal.ai/models/fal-ai/recraft/v4/text-to-vector) | Text → flat construction-paper SVG characters and scenes. We hint a magenta background plate so it can be reliably stripped, then auto-rig the mouth via geometric heuristic (or vision-LLM fallback for unusual faces). |
+| **Lip-sync catalog** | [Preston Blair · Rhubarb](https://github.com/DanielSWolf/rhubarb-lip-sync) | The 9 mouth shapes (X closed · A–H open variants) Rhubarb popularized. We don't bundle Rhubarb — cues come from word timestamps via a vowel-per-word heuristic, which is faster and regenerates instantly when the text changes. Rhubarb itself is excellent for true phoneme-driven sync. |
+
+## Bring your own API keys
+
+Every key lives encrypted in your OS keyring — macOS Keychain · Windows DPAPI · Linux GNOME Libsecret / KWallet — via Electron's `safeStorage`. The settings file holds only ciphertext, with file mode `0600` on Unix. The renderer process never sees plaintext keys, only an "is set" boolean map. Audit all of this in **Settings → SC.SEC · Key Vault**.
+
+The app boots fine with no keys. Every key is optional; nothing is gated. If a key isn't set when an action needs it, you get a single editorial toast with a one-click "Open Settings" shortcut.
+
+### Dialogue & scenes
+
+| Key | Used for |
+| --- | --- |
+| `OPENAI_API_KEY` | Script authoring · vision-based mouth detection on uploaded SVGs · OpenAI TTS · Whisper word alignment for any provider without native timestamps. |
+| `FAL_API_KEY` | Recraft V4 character + scene generation. |
+
+### Text-to-speech
+
+| Key | Provider · what it's good for |
+| --- | --- |
+| `ELEVENLABS_API_KEY` | ElevenLabs — best voice quality, native word-level timestamps. |
+| `GOOGLE_API_KEY` | Google Gemini 2.5 Flash — 15 distinctive voices. |
+| `CARTESIA_API_KEY` | Cartesia Sonic-3 — ultra-low latency, expressive character voices. |
+| `DEEPGRAM_API_KEY` | Deepgram Aura-2 — natural conversational voices. |
+| `HUME_API_KEY` | Hume Octave-2 — emotionally intelligent, prompt-steerable. |
+| `FISH_AUDIO_API_KEY` | Fish Audio S2-Pro — paste reference IDs from fish.audio. |
+| `INWORLD_API_KEY` | Inworld TTS-1.5-Max — character voices built for game/agent NPCs. |
+
+## Build a binary for your machine
 
 ```bash
 npm run make
 ```
 
-Produces a Squirrel installer on Windows, a `.zip` containing the `.app` on macOS, and `.deb` / `.rpm` on Linux. Output lands in `out/`.
+Squirrel installer on Windows · `.zip` containing the `.app` on macOS · `.deb` / `.rpm` on Linux. Output lands in `out/`.
 
-> **Note on signing.** Builds are unsigned by default. macOS users will see a Gatekeeper warning the first time they open the app — right-click → Open → confirm to bypass. Windows users will see SmartScreen — click "More info" → "Run anyway". Both go away if you sign with an Apple Developer ID / Authenticode certificate; see `forge.config.ts` for the hooks.
-
-## Bring your own API keys
-
-Cartoon Studio stores nothing of yours, ships nothing of mine. Every API key lives encrypted in your OS keyring (macOS Keychain · Windows DPAPI · Linux GNOME Libsecret / KWallet) via Electron's `safeStorage`. The settings file (`settings.json` in the app's userData directory) holds only ciphertext, with file mode `0600` on Unix. The renderer process never sees plaintext keys — only a boolean "is this set" map. You can audit all of this in the **Settings → SC.SEC · Key Vault** panel.
-
-| Key | Used for |
-| --- | --- |
-| `ELEVENLABS_API_KEY` | ElevenLabs TTS — best voice quality, native word-level timestamps. |
-| `OPENAI_API_KEY` | OpenAI TTS · Whisper word-level alignment for any provider without native timestamps · LLM script authoring · vision-based mouth detection on uploaded SVGs. |
-| `GOOGLE_API_KEY` | Google Gemini 2.5 Flash TTS — 15 distinctive voices. |
-| `CARTESIA_API_KEY` | Cartesia Sonic-3 TTS — ultra-low latency, expressive character voices. |
-| `DEEPGRAM_API_KEY` | Deepgram Aura-2 TTS — natural conversational voices. |
-| `HUME_API_KEY` | Hume Octave-2 TTS — emotionally intelligent, prompt-steerable. |
-| `FISH_AUDIO_API_KEY` | Fish Audio S2-Pro TTS — paste reference IDs from fish.audio. |
-| `INWORLD_API_KEY` | Inworld TTS-1.5-Max — character voices built for game/agent NPCs. |
-| `FAL_API_KEY` | Recraft V4 character + scene generation. |
-
-The app boots fine with no keys — you can drag the bundled default characters/scenes around, see the editor, and watch the cabinet sit empty. Every key is optional; nothing is gated. If a key isn't set when an action needs it, you get a single editorial toast with a one-click "Open Settings" shortcut.
+> **Signing.** Builds are unsigned by default. macOS users see a Gatekeeper warning the first time — right-click → Open → confirm to bypass. Windows users see SmartScreen — click "More info" → "Run anyway". Both go away if you sign with an Apple Developer ID / Authenticode certificate; see `forge.config.ts` for the hooks.
 
 ## Project layout
 
 ```
 src/
-  main/        Electron main process — settings, IPC, TTS, render, composition
-  preload/     contextBridge → IpcApi exposed to the renderer
+  main/        Electron main — settings, IPC, TTS, render, composition
+  preload/     contextBridge exposing IpcApi to the renderer
   renderer/    Vanilla TS + Tailwind 4 — screens, modals, design system
     screens/   Stage / Dialogue / Play
-  shared/      Types and contracts shared across processes
+  shared/      Cross-process types
 resources/
-  defaults/    Bundled characters (Bill, Ted) and scenes (park, backyard, …)
+  defaults/    Bundled characters (Bill · Ted · Jane · Max) + scenes
+scripts/       CLI tools (e.g. `npm run rig` for SVG mouth-rigging)
 docs/          Repo media
 ```
 
@@ -117,10 +120,16 @@ Forge is configured to:
 - Bundle `resources/defaults/` as `extraResource` so default characters & scenes ship with the app.
 - Unpack `node_modules/hyperframes/**` from the asar so the render child process can resolve the CLI entry.
 
+## Status
+
+**v0.1 — prototype.** End-to-end pipeline working. Built as a desktop app (Electron) with editorial UI (Newsreader / Switzer / Departure Mono). Bring your own keys; no telemetry, no cloud. Pre-built binaries and code-signing are next.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[Apache 2.0](LICENSE).
 
 ---
 
-<sub><b>Sponsored by [Jellypod](https://jellypod.ai)</b> — the team behind <a href="https://github.com/Jellypod-Inc/speech-sdk">Speech SDK</a>.</sub>
+<div align="center">
+  <sub>Sponsored by <a href="https://jellypod.ai"><b>Jellypod</b></a> — the team behind <a href="https://github.com/Jellypod-Inc/speech-sdk">Speech SDK</a>.</sub>
+</div>

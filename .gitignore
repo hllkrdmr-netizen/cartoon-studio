@@ -94,3 +94,7 @@ out/
 # Bundled chrome-headless-shell (~120-189 MB, downloaded by npm postinstall).
 # Per-platform binary; rebuild with `npm run setup:chrome` when stale.
 resources/chrome/
+
+# Local screen recordings + launch demos. Big binary blobs that don't
+# belong in git history.
+videos/
