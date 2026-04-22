@@ -19,6 +19,9 @@ const ffmpegBundledPath = require('ffmpeg-static') as string;
 
 const config: ForgeConfig = {
   packagerConfig: {
+    // App bundle icon — Forge auto-picks the right extension per platform:
+    // .icns on macOS, .ico on Windows, .png on Linux. Pass without extension.
+    icon: './resources/icon',
     asar: {
       // hyperframes ships an ESM CLI + native deps that don't load from
       // inside an asar archive when spawned as a child process.
@@ -35,6 +38,7 @@ const config: ForgeConfig = {
       './resources/defaults',
       ffmpegBundledPath, // → Resources/ffmpeg (or ffmpeg.exe on Windows)
       './resources/chrome', // → Resources/chrome/chrome-headless-shell/...
+      './resources/icon.png', // → Resources/icon.png (runtime BrowserWindow icon)
     ],
   },
   rebuildConfig: {},

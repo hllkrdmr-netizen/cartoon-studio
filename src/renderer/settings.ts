@@ -1,4 +1,10 @@
-import { API_KEYS, type ApiKeyId } from '../shared/keys';
+import {
+  API_KEYS,
+  API_KEYS_INTELLIGENCE,
+  API_KEYS_TTS,
+  type ApiKeyId,
+  type ApiKeySpec,
+} from '../shared/keys';
 import { notify, notifyError } from './notify';
 
 let panel: HTMLDivElement | null = null;
@@ -19,6 +25,37 @@ async function render(): Promise<void> {
          </p>
        </div>`
     : '';
+
+  const keyRow = (k: ApiKeySpec) => `
+          <div style="padding: 14px 16px; border: 1px solid var(--color-hairline); background: var(--color-ink);">
+            <div class="flex items-center justify-between mb-1">
+              <label for="key-${k.id}" style="font-family: var(--font-display); font-size: 17px; font-weight: 500; color: var(--color-text);">${escapeHtml(k.label)}</label>
+              <span class="caption" style="color: ${status[k.id] ? 'var(--color-accent)' : 'var(--color-muted)'};">
+                ${status[k.id] ? '● SET' : '○ NOT SET'}
+              </span>
+            </div>
+            <p style="font-size: 12.5px; color: var(--color-muted); margin-bottom: 10px; line-height: 1.5;">${escapeHtml(k.purpose)}</p>
+            <div class="flex gap-2">
+              <input
+                id="key-${k.id}"
+                data-key-id="${k.id}"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="${status[k.id] ? '•••••••• (saved · paste new value to overwrite)' : 'paste key…'}"
+                class="flex-1"
+                ${storage.insecure ? 'disabled' : ''}
+              />
+              <button data-save="${k.id}" class="btn-primary" ${storage.insecure ? 'disabled' : ''}>Save</button>
+              ${
+                status[k.id]
+                  ? `<button data-delete="${k.id}" class="btn-ghost" style="border-color: var(--color-danger); color: var(--color-danger);">Delete</button>`
+                  : ''
+              }
+              <a href="${k.url}" target="_blank" rel="noreferrer" class="btn-ghost" style="text-decoration: none;">Get key ↗</a>
+            </div>
+          </div>
+        `;
 
   panel.innerHTML = `
     <div class="absolute inset-0" data-close style="background: rgba(8,9,10,0.72); backdrop-filter: blur(2px);"></div>
@@ -67,38 +104,19 @@ async function render(): Promise<void> {
       </section>
 
       <div style="padding-top: 18px; display: flex; flex-direction: column; gap: 14px;">
-        ${API_KEYS.map(
-          (k) => `
-          <div style="padding: 14px 16px; border: 1px solid var(--color-hairline); background: var(--color-ink);">
-            <div class="flex items-center justify-between mb-1">
-              <label for="key-${k.id}" style="font-family: var(--font-display); font-size: 17px; font-weight: 500; color: var(--color-text);">${escapeHtml(k.label)}</label>
-              <span class="caption" style="color: ${status[k.id] ? 'var(--color-accent)' : 'var(--color-muted)'};">
-                ${status[k.id] ? '● SET' : '○ NOT SET'}
-              </span>
-            </div>
-            <p style="font-size: 12.5px; color: var(--color-muted); margin-bottom: 10px; line-height: 1.5;">${escapeHtml(k.purpose)}</p>
-            <div class="flex gap-2">
-              <input
-                id="key-${k.id}"
-                data-key-id="${k.id}"
-                type="password"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="${status[k.id] ? '•••••••• (saved · paste new value to overwrite)' : 'paste key…'}"
-                class="flex-1"
-                ${storage.insecure ? 'disabled' : ''}
-              />
-              <button data-save="${k.id}" class="btn-primary" ${storage.insecure ? 'disabled' : ''}>Save</button>
-              ${
-                status[k.id]
-                  ? `<button data-delete="${k.id}" class="btn-ghost" style="border-color: var(--color-danger); color: var(--color-danger);">Delete</button>`
-                  : ''
-              }
-              <a href="${k.url}" target="_blank" rel="noreferrer" class="btn-ghost" style="text-decoration: none;">Get key ↗</a>
-            </div>
+        <div class="flex items-center gap-3">
+          <span class="caption">DIALOGUE &amp; SCENES</span>
+          <span class="rule" style="flex: 1;"></span>
+        </div>
+        ${API_KEYS_INTELLIGENCE.map((k) => keyRow(k)).join('')}
+
+        <div style="margin-top: 4px; padding-top: 18px; border-top: 1px solid var(--color-hairline); display: flex; flex-direction: column; gap: 14px;">
+          <div class="flex items-center gap-3">
+            <span class="caption">TEXT-TO-SPEECH</span>
+            <span class="rule" style="flex: 1;"></span>
           </div>
-        `,
-        ).join('')}
+          ${API_KEYS_TTS.map((k) => keyRow(k)).join('')}
+        </div>
       </div>
     </div>
   `;

@@ -31,8 +31,10 @@ root.innerHTML = `
   <main class="flex h-screen flex-col" style="background: var(--color-ink);">
     <header class="grain relative shrink-0 flex items-center gap-8 px-6" style="height: 56px; border-bottom: 1px solid var(--color-hairline);">
       <a class="flex items-center gap-3 shrink-0 min-w-0" style="text-decoration: none;">
-        <span class="shrink-0" style="width: 10px; height: 10px; background: var(--color-accent);"></span>
-        <span class="font-display font-semibold truncate" style="font-size: 18px; letter-spacing: -0.01em;">Cartoon Studio</span>
+        <span class="inline-flex min-w-0 items-center gap-1.5">
+          <img src="/logo.png" alt="" draggable="false" class="shrink-0" style="width: 28px; height: 28px; display: block;" />
+          <span class="font-display font-semibold truncate" style="font-size: 18px; letter-spacing: -0.01em;">Cartoon Studio</span>
+        </span>
         <span class="caption shrink-0 hidden md:inline-flex" style="padding-left: 12px; border-left: 1px solid var(--color-hairline); margin-left: 4px;">
           2D ANIMATED<br/>CARTOON STUDIO
         </span>

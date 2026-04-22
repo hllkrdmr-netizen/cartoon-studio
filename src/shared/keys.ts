@@ -17,19 +17,29 @@ export type ApiKeySpec = {
   url: string;
 };
 
-export const API_KEYS: readonly ApiKeySpec[] = [
-  {
-    id: 'ELEVENLABS_API_KEY',
-    label: 'ElevenLabs',
-    purpose: 'TTS — best voice quality, native word-level timestamps.',
-    url: 'https://elevenlabs.io/app/settings/api-keys',
-  },
+/** OpenAI (dialogue, vision, optional TTS) and Fal (image gen) — listed first in Settings. */
+export const API_KEYS_INTELLIGENCE: readonly ApiKeySpec[] = [
   {
     id: 'OPENAI_API_KEY',
     label: 'OpenAI',
     purpose:
       'TTS, Whisper word-level timestamps, dialogue authoring, line rewrites, and vision-based mouth detection on uploaded SVGs.',
     url: 'https://platform.openai.com/api-keys',
+  },
+  {
+    id: 'FAL_API_KEY',
+    label: 'Fal',
+    purpose: 'Recraft V4 character & scene generation.',
+    url: 'https://fal.ai/dashboard/keys',
+  },
+] as const;
+
+export const API_KEYS_TTS: readonly ApiKeySpec[] = [
+  {
+    id: 'ELEVENLABS_API_KEY',
+    label: 'ElevenLabs',
+    purpose: 'TTS — best voice quality, native word-level timestamps.',
+    url: 'https://elevenlabs.io/app/settings/api-keys',
   },
   {
     id: 'GOOGLE_API_KEY',
@@ -68,10 +78,9 @@ export const API_KEYS: readonly ApiKeySpec[] = [
     purpose: 'TTS-1.5-Max — 80+ character voices built for game/agent NPCs.',
     url: 'https://platform.inworld.ai/',
   },
-  {
-    id: 'FAL_API_KEY',
-    label: 'Fal',
-    purpose: 'Recraft V4 character & scene generation.',
-    url: 'https://fal.ai/dashboard/keys',
-  },
+] as const;
+
+export const API_KEYS: readonly ApiKeySpec[] = [
+  ...API_KEYS_INTELLIGENCE,
+  ...API_KEYS_TTS,
 ] as const;

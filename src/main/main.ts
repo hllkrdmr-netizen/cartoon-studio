@@ -7,10 +7,20 @@ if (started) {
   app.quit();
 }
 
+// Runtime window icon — used on Linux/Windows for the window chrome and
+// the taskbar entry. macOS ignores this and uses the .icns from the app
+// bundle (set via forge.config.ts packagerConfig.icon). In packaged builds
+// the PNG is alongside the .icns/.ico inside the .app/.exe; in dev it's
+// at ./resources/icon.png in the repo root.
+const windowIconPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(app.getAppPath(), 'resources', 'icon.png');
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    icon: windowIconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -34,6 +44,14 @@ const createWindow = () => {
 };
 
 app.on('ready', () => {
+  // macOS dev: the dock icon comes from the running Electron binary (which
+  // ships its own icon), not from packagerConfig.icon — that only applies
+  // to packaged .app bundles. Override it at runtime so `npm start` shows
+  // our icon too. Packaged builds get the .icns from Resources/ and don't
+  // need this, but calling it is a no-op there.
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(windowIconPath);
+  }
   registerIpcHandlers();
   createWindow();
 });
