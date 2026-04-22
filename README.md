@@ -55,20 +55,20 @@ Pre-built binaries will be linked here once they're ready. For now, run from sou
 
 ### Prerequisites
 
-- **Node.js ≥ 20** on your `PATH` (HyperFrames render is spawned via your system Node, not Electron's bundled runtime).
-- **ffmpeg** on `PATH` (HyperFrames muxes the final MP4 with it). `brew install ffmpeg` on macOS, `winget install ffmpeg` on Windows.
-- **Chrome** installed (HyperFrames uses it for offline rendering).
+- **Node.js ≥ 20** for `npm install` (the packaged app reuses Electron's bundled Node at runtime via `ELECTRON_RUN_AS_NODE`).
+
+That's it. `ffmpeg` and Chrome are bundled — no `brew install` / `winget install` step.
 
 ### Run
 
 ```bash
 git clone https://github.com/btpod/agent-park.git
 cd agent-park
-npm install
+npm install      # also downloads chrome-headless-shell (~190 MB) into resources/chrome
 npm start
 ```
 
-`npm start` boots a Vite dev server for the renderer and an Electron process for main + preload, with HMR on the renderer.
+`npm start` boots a Vite dev server for the renderer and an Electron process for main + preload, with HMR on the renderer. The `postinstall` script downloads chrome-headless-shell once for your host platform; rerun `npm run setup:chrome` if it gets stale or you switch architectures.
 
 ### Build a binary for your machine
 

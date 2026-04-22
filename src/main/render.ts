@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { dialog, BrowserWindow, app } from 'electron';
 import path from 'node:path';
 import { showWorkingDir } from './showStore';
+import { nodeBin, nodeEnv, ffmpegPath, chromePath } from './binaries';
 
 export type RenderProgress =
   | { type: 'start'; outputPath: string }
@@ -44,18 +45,32 @@ export async function renderShow(
   const dir = showWorkingDir(showId);
   const entry = hyperframesEntry();
 
+  // Resolve bundled binaries up front so a missing dep fails before we
+  // emit "start" — the render UI can stay in idle state.
+  const ff = ffmpegPath();
+  const chrome = chromePath();
+
   emit(win, { type: 'start', outputPath });
 
   return new Promise<string>((resolve, reject) => {
-    // Use the user's installed Node (PATH). Required because hyperframes
-    // spawns Chrome and ffmpeg in subprocesses; running it under the
-    // Electron binary's bundled Chromium won't behave the same.
+    // Spawn Electron itself as a Node runtime (ELECTRON_RUN_AS_NODE=1)
+    // so we don't need a bundled Node binary. ffmpeg is found by
+    // prepending its directory to PATH (HyperFrames spawns bare
+    // `ffmpeg` internally). Chrome is pinned via two env vars Puppeteer
+    // and HyperFrames both honor.
+    const ffDir = path.dirname(ff);
     const child = spawn(
-      process.platform === 'win32' ? 'node.exe' : 'node',
+      nodeBin,
       [entry, 'render', dir, '-o', outputPath, '--quiet'],
       {
         cwd: dir,
-        env: { ...process.env },
+        env: {
+          ...process.env,
+          ...nodeEnv,
+          PATH: `${ffDir}${path.delimiter}${process.env.PATH ?? ''}`,
+          PUPPETEER_EXECUTABLE_PATH: chrome,
+          PRODUCER_HEADLESS_SHELL_PATH: chrome,
+        },
       },
     );
 
@@ -78,7 +93,7 @@ export async function renderShow(
         emit(win, { type: 'done', outputPath });
         resolve(outputPath);
       } else {
-        const msg = `render exited with code ${code}. Make sure ffmpeg is on PATH and Chrome is installed.`;
+        const msg = `render exited with code ${code}.`;
         emit(win, { type: 'error', message: msg });
         reject(new Error(msg));
       }

@@ -6,16 +6,36 @@ import { MakerRpm } from '@electron-forge/maker-rpm';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import path from 'node:path';
+
+// Resolve at config-eval time on the build host. ffmpegPath is the
+// absolute path to the ffmpeg binary inside node_modules/ffmpeg-static
+// for the host platform — Forge will copy it into Resources/ at package
+// time. The cast is because the package's TS types declare the export
+// as the union string|null even though it's always a string at runtime
+// when the postinstall succeeded.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ffmpegBundledPath = require('ffmpeg-static') as string;
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      // hyperframes ships an ESM CLI + native deps that don't load from inside
-      // an asar archive when spawned as a child process. Unpack so node can
-      // resolve it from app.asar.unpacked/.
-      unpack: '**/node_modules/hyperframes/**',
+      // hyperframes ships an ESM CLI + native deps that don't load from
+      // inside an asar archive when spawned as a child process.
+      // ffmpeg-static stores its binary inside node_modules; same story.
+      unpack:
+        '**/{node_modules/hyperframes,node_modules/ffmpeg-static}/**',
     },
-    extraResource: ['./resources/defaults'],
+    // Bundled runtime dependencies — see src/main/binaries.ts for the
+    // resolution side. ffmpeg + chrome-headless-shell ship inside the
+    // app so users don't need brew/winget/apt install steps. Node is
+    // not bundled separately; we spawn Electron itself with
+    // ELECTRON_RUN_AS_NODE=1 (requires the RunAsNode fuse below).
+    extraResource: [
+      './resources/defaults',
+      ffmpegBundledPath, // → Resources/ffmpeg (or ffmpeg.exe on Windows)
+      './resources/chrome', // → Resources/chrome/chrome-headless-shell/...
+    ],
   },
   rebuildConfig: {},
   makers: [
@@ -26,8 +46,6 @@ const config: ForgeConfig = {
   ],
   plugins: [
     new VitePlugin({
-      // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
-      // If you are familiar with Vite configuration, it will look really familiar.
       build: [
         {
           entry: 'src/main/main.ts',
@@ -47,11 +65,12 @@ const config: ForgeConfig = {
         },
       ],
     }),
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
+    // Electron Fuses — flipped at package time. RunAsNode must be true
+    // so ELECTRON_RUN_AS_NODE=1 works for the hyperframes child process
+    // (saves bundling a separate Node binary, ~30-50 MB).
     new FusesPlugin({
       version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
+      [FuseV1Options.RunAsNode]: true,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,

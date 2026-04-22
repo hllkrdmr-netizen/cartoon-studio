@@ -90,3 +90,7 @@ typings/
 
 # Electron-Forge
 out/
+
+# Bundled chrome-headless-shell (~120-189 MB, downloaded by npm postinstall).
+# Per-platform binary; rebuild with `npm run setup:chrome` when stale.
+resources/chrome/
