@@ -7,6 +7,13 @@ const isReady = signal(false);
 const isPlaying = signal(false);
 const currentTime = signal(0);
 const totalDuration = signal(0);
+type ViewMode = 'landscape' | 'portrait';
+const viewMode = signal<ViewMode>('landscape');
+// Covers the window after the render itself finishes (status flips to
+// 'saved' or 'render-failed') but before the preview HTML has been
+// rebuilt back to landscape. Without this, the Render button re-enables
+// a beat too early and a second click could overlap with the restore.
+const isPostRenderBuilding = signal(false);
 
 // Status is a union of compact labels — no long paths, no raw log lines, no
 // layout shift. Details (e.g. the output path) live in separate state that's
@@ -38,6 +45,15 @@ window.addEventListener('message', (ev) => {
   if (d.type === 'cartoonstudio:ready') {
     isReady.value = true;
     if (typeof d.duration === 'number') totalDuration.value = d.duration;
+    // Re-seed the camera mode on every fresh iframe load — otherwise a
+    // toggle made before the first load (or a reload after scene edits)
+    // would leave the iframe stuck in its default landscape.
+    if (iframeEl?.contentWindow) {
+      iframeEl.contentWindow.postMessage(
+        { type: 'cartoonstudio:viewMode', mode: viewMode.value },
+        '*',
+      );
+    }
   } else if (d.type === 'cartoonstudio:tick' && typeof d.t === 'number') {
     currentTime.value = d.t;
   } else if (d.type === 'cartoonstudio:ended') {
@@ -59,6 +75,10 @@ export function mountPlay(root: HTMLElement): void {
           <p class="caption mt-2" style="color: var(--color-muted);">PREVIEW THE COMPOSITION · EXPORT TO MP4</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
+          <div id="view-toggle" class="flex" style="gap: 2px; padding: 2px; border: 1px solid var(--color-hairline); border-radius: 2px;">
+            <button data-mode="landscape" class="view-btn caption" style="padding: 4px 10px; font-size: 10.5px; background: transparent; border: 0; cursor: pointer;">◻ LANDSCAPE</button>
+            <button data-mode="portrait" class="view-btn caption" style="padding: 4px 10px; font-size: 10.5px; background: transparent; border: 0; cursor: pointer;">▯ PORTRAIT</button>
+          </div>
           <span id="status-pill" class="caption" style="font-size: 10.5px;"></span>
           <button id="render" class="btn-primary">Render ↗ MP4</button>
         </div>
@@ -67,7 +87,7 @@ export function mountPlay(root: HTMLElement): void {
       <div id="empty" class="hidden flex-1 flex items-center justify-center text-center" style="padding: 32px;"></div>
       <div id="player-wrap" class="flex-1 flex flex-col min-h-0">
         <div class="flex-1 flex items-center justify-center min-h-0 overflow-hidden vignette" style="padding: 32px;">
-          <div id="cabinet" class="relative" style="width: 100%; max-width: 64rem; max-height: 100%; aspect-ratio: 16/9;">
+          <div id="cabinet" class="relative" style="width: 100%; max-width: 64rem; max-height: 100%; aspect-ratio: 16/9; transition: aspect-ratio 280ms ease, max-width 280ms ease;">
             <!-- Filmstrip perforation strip, top -->
             <div class="perforation absolute -top-4 left-0 right-0" style="height: 8px; background-color: transparent;"></div>
             <!-- Slate chip floating top-left of the cabinet -->
@@ -119,6 +139,17 @@ export function mountPlay(root: HTMLElement): void {
   const scrub = root.querySelector<HTMLInputElement>('#scrub')!;
   const timeEl = root.querySelector<HTMLSpanElement>('#time')!;
   const renderBtn = root.querySelector<HTMLButtonElement>('#render')!;
+  const cabinet = root.querySelector<HTMLDivElement>('#cabinet')!;
+  const viewBtns = Array.from(
+    root.querySelectorAll<HTMLButtonElement>('#view-toggle .view-btn'),
+  );
+  viewBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode as ViewMode;
+      if (mode === viewMode.value) return;
+      viewMode.value = mode;
+    });
+  });
 
   playPauseBtn.addEventListener('click', () => {
     if (!isReady.value) return;
@@ -153,8 +184,14 @@ export function mountPlay(root: HTMLElement): void {
       // pill already tells the user what's happening, and log lines in the
       // header were the source of the layout-shift complaint.
     });
+    const renderMode = viewMode.value;
     try {
-      await window.api.buildComposition(currentShow.value.id);
+      // Rebuild the composition HTML in the mode we're about to render so
+      // the output dimensions (16:9 vs 9:16) and the baked camera tweens
+      // match the user's toggle.
+      await window.api.buildComposition(currentShow.value.id, {
+        viewMode: renderMode,
+      });
       await window.api.renderShow(currentShow.value.id);
     } catch (err) {
       const msg = (err as Error).message;
@@ -166,6 +203,24 @@ export function mountPlay(root: HTMLElement): void {
       }
     } finally {
       off();
+      // Restore the preview-oriented HTML on disk (landscape, no baked
+      // camera) so the next iframe reload shows a live-switchable preview
+      // again. Swallow failures — a build error here isn't worth surfacing.
+      // Guard the Render button while this runs: status has already flipped
+      // to 'saved'/'render-failed' by now, so without this flag a quick
+      // click could start a second render on top of the restore build.
+      if (renderMode !== 'landscape') {
+        isPostRenderBuilding.value = true;
+        try {
+          await window.api
+            .buildComposition(currentShow.value.id)
+            .catch(() => {
+              /* non-fatal — preview restores on next reload */
+            });
+        } finally {
+          isPostRenderBuilding.value = false;
+        }
+      }
     }
   });
 
@@ -209,9 +264,10 @@ export function mountPlay(root: HTMLElement): void {
     loadingOverlay.style.display = ready ? 'none' : '';
   });
   effect(() => {
-    const rendering = status.value.kind === 'rendering';
-    renderBtn.disabled = rendering;
-    renderBtn.textContent = rendering ? 'Rendering…' : 'Render ↗ MP4';
+    const busy =
+      status.value.kind === 'rendering' || isPostRenderBuilding.value;
+    renderBtn.disabled = busy;
+    renderBtn.textContent = busy ? 'Rendering…' : 'Render ↗ MP4';
   });
   effect(() => {
     playPauseBtn.textContent = isPlaying.value ? 'Pause' : 'Play';
@@ -232,6 +288,34 @@ export function mountPlay(root: HTMLElement): void {
     statusPill.textContent = label;
     statusPill.style.color = color;
     statusPill.title = title;
+  });
+
+  // View-mode toggle: flips the cabinet aspect ratio and tells the iframe
+  // to switch its internal camera. The iframe keeps its internal stage at
+  // 1920x1080 either way — portrait is a crop, not a re-layout — so we
+  // just need to resize the cabinet and post the mode across.
+  effect(() => {
+    const m = viewMode.value;
+    if (m === 'portrait') {
+      // Center a 9:16 cabinet and cap its width so it doesn't dominate the
+      // screen on large displays. Height is bounded by the container so
+      // aspect-ratio resolves naturally.
+      cabinet.style.aspectRatio = '9 / 16';
+      cabinet.style.maxWidth = '24rem';
+      cabinet.style.marginLeft = 'auto';
+      cabinet.style.marginRight = 'auto';
+    } else {
+      cabinet.style.aspectRatio = '16 / 9';
+      cabinet.style.maxWidth = '64rem';
+      cabinet.style.marginLeft = '';
+      cabinet.style.marginRight = '';
+    }
+    viewBtns.forEach((btn) => {
+      const active = btn.dataset.mode === m;
+      btn.style.color = active ? 'var(--color-accent)' : 'var(--color-quiet)';
+      btn.style.background = active ? 'var(--color-hairline)' : 'transparent';
+    });
+    send('cartoonstudio:viewMode', { mode: m });
   });
 
   // Sub-row appears only for 'saved' (with a Reveal button) or for errors

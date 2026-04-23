@@ -32,8 +32,8 @@ const api: IpcApi = {
   audioUrl: (showId, audioFile) =>
     ipcRenderer.invoke(IPC_CHANNELS.audioUrl, showId, audioFile),
 
-  buildComposition: (showId) =>
-    ipcRenderer.invoke(IPC_CHANNELS.buildComposition, showId),
+  buildComposition: (showId, options) =>
+    ipcRenderer.invoke(IPC_CHANNELS.buildComposition, showId, options),
 
   previewUrl: (showId) => ipcRenderer.invoke(IPC_CHANNELS.previewUrl, showId),
 

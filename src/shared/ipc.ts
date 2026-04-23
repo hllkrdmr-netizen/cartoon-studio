@@ -61,7 +61,10 @@ export type IpcApi = {
 
   audioUrl: (showId: string, audioFile: string) => Promise<string>;
 
-  buildComposition: (showId: string) => Promise<{
+  buildComposition: (
+    showId: string,
+    options?: { viewMode?: 'landscape' | 'portrait' },
+  ) => Promise<{
     outDir: string;
     composition: string;
     scene: string;

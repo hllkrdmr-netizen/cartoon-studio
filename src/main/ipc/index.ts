@@ -121,10 +121,17 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.audioUrl,
     (_e, showId: string, audioFile: string) => audioFileUrl(showId, audioFile),
   );
-  ipcMain.handle(IPC_CHANNELS.buildComposition, async (_e, showId: string) => {
-    const show = await loadShow(showId);
-    return buildComposition(show);
-  });
+  ipcMain.handle(
+    IPC_CHANNELS.buildComposition,
+    async (
+      _e,
+      showId: string,
+      options?: { viewMode?: 'landscape' | 'portrait' },
+    ) => {
+      const show = await loadShow(showId);
+      return buildComposition(show, options);
+    },
+  );
   ipcMain.handle(IPC_CHANNELS.previewUrl, (_e, showId: string) =>
     previewUrl(showId),
   );
