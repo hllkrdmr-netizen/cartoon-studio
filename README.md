@@ -13,7 +13,7 @@ An open-source desktop studio — script in, MP4 out. Bring your own API keys; n
 [![Node](https://img.shields.io/badge/Node-≥24-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![Stars](https://img.shields.io/github/stars/Jellypod-Inc/cartoon-studio?style=flat-square&logo=github&label=stars)](https://github.com/Jellypod-Inc/cartoon-studio/stargazers)
 
-**[Install](#install)** · **[Run from source](#run-from-source)** · **[Three screens](#three-screens-three-jobs)** · **[How it works](#how-it-works)** · **[Built on](#built-on)** · **[API keys](#bring-your-own-api-keys)**
+**[Quick start](#quick-start)** · **[Three screens](#three-screens-three-jobs)** · **[How it works](#how-it-works)** · **[Built on](#built-on)** · **[API keys](#bring-your-own-api-keys)**
 
 </div>
 
@@ -21,28 +21,9 @@ An open-source desktop studio — script in, MP4 out. Bring your own API keys; n
 
 ![Cartoon Studio preview](docs/hero.png)
 
-## Install
+## Quick start
 
-Grab the latest build for your platform from the [**Releases page**](https://github.com/Jellypod-Inc/cartoon-studio/releases/latest):
-
-- **macOS** (Apple Silicon) — `.zip` containing `Cartoon Studio.app`. Unzip, drag to **Applications**.
-- **Windows** — `Setup.exe` installer. Run it.
-
-Intel Macs aren't supported by the current prebuilt binary — please [build from source](#run-from-source) on Intel hardware. Linux users should also build from source (`.deb` / `.rpm` targets are configured but not published).
-
-### First launch — unsigned build warnings
-
-Builds aren't code-signed yet, so the OS will flag them the first time. One-time bypass:
-
-- **macOS** — if you see "Cartoon Studio is damaged / can't be opened," run:
-  ```bash
-  xattr -cr "/Applications/Cartoon Studio.app"
-  ```
-- **Windows** — if SmartScreen shows "Windows protected your PC," click **More info** → **Run anyway**.
-
-Both warnings disappear once we ship signed builds.
-
-## Run from source
+> **Heads up — no pre-built binaries yet.** Code signing and distribution are still being sorted out. For now, run from source. Works on macOS, Windows, and Linux.
 
 You only need **Node ≥ 24** (the repo pins `24` via `.nvmrc` — run `nvm use` to match CI). `ffmpeg` and Chrome are bundled via `postinstall`.
 
@@ -118,7 +99,9 @@ The app boots fine with no keys. Every key is optional; nothing is gated. If a k
 npm run make
 ```
 
-Squirrel installer on Windows · `.zip` containing the `.app` on macOS · `.deb` / `.rpm` on Linux. Output lands in `out/`. See the [Install](#install) section above for bypassing first-launch warnings on unsigned builds.
+Squirrel installer on Windows · `.zip` containing the `.app` on macOS · `.deb` / `.rpm` on Linux. Output lands in `out/`.
+
+> **Signing.** Builds are unsigned — on macOS you'll hit Gatekeeper ("damaged / can't be opened") and possibly Keychain access issues since the Fuses plugin invalidates the ad-hoc signature. On Windows you'll see SmartScreen. These go away once we ship signed builds via an Apple Developer ID + Authenticode certificate.
 
 ## Project layout
 
