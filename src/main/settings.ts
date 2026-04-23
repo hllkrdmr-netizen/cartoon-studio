@@ -70,6 +70,47 @@ function isInsecureBackend(backend: StorageBackend): boolean {
   return backend === 'basic_text' || backend === 'unknown';
 }
 
+function encryptionUnavailableMessage(): string {
+  // Platform-specific guidance for the most common reason each OS fails.
+  // macOS: almost always App Translocation on unsigned/quarantined builds.
+  // Windows: DPAPI issues usually mean a user-profile mismatch.
+  // Linux: no keyring daemon running.
+  if (process.platform === 'darwin') {
+    return (
+      'macOS Keychain is not accessible. If you installed from a downloaded ' +
+      '.zip, the app may be running via App Translocation. Quit Cartoon Studio, ' +
+      'move it to /Applications if not already there, then in Terminal run:\n\n' +
+      '  xattr -cr "/Applications/Cartoon Studio.app"\n\n' +
+      'and relaunch from /Applications. See the README Install section for details.'
+    );
+  }
+  if (process.platform === 'win32') {
+    return (
+      'Windows credential encryption (DPAPI) is not available. Make sure ' +
+      "you're signed in as the same Windows user who installed the app — DPAPI " +
+      'encryption is tied to the user profile.'
+    );
+  }
+  return (
+    'OS-level encryption is not available on this system. Install a system ' +
+    'keyring (gnome-keyring or kwallet on Linux) and try again — keys are ' +
+    'never stored as plaintext.'
+  );
+}
+
+function insecureBackendMessage(backend: StorageBackend): string {
+  if (backend === 'basic_text') {
+    return (
+      'Your Linux session does not provide a secure keyring (basic_text ' +
+      'fallback detected). Refusing to save the key as plaintext on disk. ' +
+      'Install gnome-keyring or kwallet, or pass the key via environment ' +
+      'variable instead.'
+    );
+  }
+  // backend === 'unknown' — platform-aware fallback.
+  return encryptionUnavailableMessage();
+}
+
 function tightenPermissions(): void {
   // 0600 = owner read/write only. electron-store writes with the default
   // umask (typically 0644 on Unix), which means anyone on the machine could
@@ -85,15 +126,11 @@ function tightenPermissions(): void {
 
 function encrypt(value: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error(
-      'OS-level encryption is not available on this system. Install a system keyring (gnome-keyring or kwallet on Linux) and try again — keys are never stored as plaintext.',
-    );
+    throw new Error(encryptionUnavailableMessage());
   }
   const backend = getBackend();
   if (isInsecureBackend(backend)) {
-    throw new Error(
-      'Your OS does not provide a secure keyring (basic_text fallback detected). Refusing to save the key as plaintext on disk. Install gnome-keyring or kwallet, or pass the key via environment variable instead.',
-    );
+    throw new Error(insecureBackendMessage(backend));
   }
   return safeStorage.encryptString(value).toString('base64');
 }
