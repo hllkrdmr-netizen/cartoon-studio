@@ -177,7 +177,7 @@ export async function createMinoPilotShow(): Promise<Show> {
         name: 'Anlatıcı (Voice-over)',
         svg: invisibleNarratorSvg,
         x: 0.5,
-        y: 0.5,
+        y: 0.94,
         scale: 0.1,
         z: -100,
         ...narratorVoice,
