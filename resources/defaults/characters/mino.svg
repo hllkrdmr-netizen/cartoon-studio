@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-opacity="0.18"/></filter>
+    <linearGradient id="scarf" x1="0" x2="1"><stop offset="0" stop-color="#56B9F2"/><stop offset="1" stop-color="#2E8FD2"/></linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <!-- ears -->
+    <g id="ears">
+      <ellipse cx="372" cy="226" rx="72" ry="188" fill="#E8D3BB" transform="rotate(-15 372 226)"/>
+      <ellipse cx="652" cy="226" rx="72" ry="188" fill="#E8D3BB" transform="rotate(15 652 226)"/>
+      <ellipse cx="372" cy="228" rx="35" ry="143" fill="#E9B7AF" transform="rotate(-15 372 228)"/>
+      <ellipse cx="652" cy="228" rx="35" ry="143" fill="#E9B7AF" transform="rotate(15 652 228)"/>
+      <ellipse cx="341" cy="94" rx="47" ry="61" fill="#B79A82" transform="rotate(-15 341 94)"/>
+      <ellipse cx="683" cy="94" rx="47" ry="61" fill="#B79A82" transform="rotate(15 683 94)"/>
+    </g>
+    <!-- body -->
+    <ellipse cx="512" cy="720" rx="214" ry="228" fill="#E9D7C0"/>
+    <ellipse cx="512" cy="745" rx="145" ry="171" fill="#F2E5D4"/>
+    <!-- feet -->
+    <ellipse cx="386" cy="917" rx="113" ry="61" fill="#E9D7C0" transform="rotate(-8 386 917)"/>
+    <ellipse cx="638" cy="917" rx="113" ry="61" fill="#E9D7C0" transform="rotate(8 638 917)"/>
+    <!-- head -->
+    <ellipse cx="512" cy="463" rx="246" ry="226" fill="#EBDAC5"/>
+    <ellipse cx="512" cy="525" rx="171" ry="119" fill="#F4E8D8"/>
+    <!-- eyes -->
+    <ellipse cx="425" cy="440" rx="48" ry="62" fill="#153A46"/>
+    <ellipse cx="599" cy="440" rx="48" ry="62" fill="#153A46"/>
+    <ellipse cx="425" cy="442" rx="33" ry="47" fill="#42A9B7"/>
+    <ellipse cx="599" cy="442" rx="33" ry="47" fill="#42A9B7"/>
+    <circle cx="410" cy="421" r="12" fill="#fff"/><circle cx="584" cy="421" r="12" fill="#fff"/>
+    <!-- nose -->
+    <path d="M 488 511 Q 512 492 536 511 Q 530 542 512 548 Q 494 542 488 511 Z" fill="#D48683"/>
+    <!-- mouth rig -->
+    <style>.mouth-group{opacity:0}.mouth-group.mouth-X{opacity:1}</style>
+    <g class="mouth-rig" transform="translate(512 577) scale(0.58)">
+      <g class="mouth-wrap">
+        <g class="mouth-group mouth-X"><path d="M -75 0 L 75 0" fill="none" stroke="#321F1D" stroke-width="22" stroke-linecap="round"/></g>
+        <g class="mouth-group mouth-A"><path d="M -80 0 Q 0 18 80 0" fill="none" stroke="#321F1D" stroke-width="22" stroke-linecap="round"/></g>
+        <g class="mouth-group mouth-B"><ellipse cx="0" cy="0" rx="75" ry="12" fill="#5B292B"/></g>
+        <g class="mouth-group mouth-C"><ellipse cx="0" cy="8" rx="70" ry="38" fill="#5B292B" stroke="#321F1D" stroke-width="7"/></g>
+        <g class="mouth-group mouth-D"><ellipse cx="0" cy="0" rx="90" ry="60" fill="#5B292B" stroke="#321F1D" stroke-width="7"/></g>
+        <g class="mouth-group mouth-E"><ellipse cx="0" cy="0" rx="55" ry="40" fill="#5B292B" stroke="#321F1D" stroke-width="7"/></g>
+        <g class="mouth-group mouth-F"><ellipse cx="0" cy="0" rx="32" ry="36" fill="#5B292B" stroke="#321F1D" stroke-width="7"/></g>
+        <g class="mouth-group mouth-G"><path d="M -80 -8 L 80 -8 L 70 22 L -70 22 Z" fill="#5B292B" stroke="#321F1D" stroke-width="7"/></g>
+        <g class="mouth-group mouth-H"><ellipse cx="0" cy="0" rx="72" ry="42" fill="#5B292B" stroke="#321F1D" stroke-width="7"/><ellipse cx="0" cy="8" rx="32" ry="20" fill="#E58D95"/></g>
+      </g>
+    </g>
+    <!-- arms -->
+    <ellipse cx="350" cy="710" rx="70" ry="144" fill="#E9D7C0" transform="rotate(23 350 710)"/>
+    <ellipse cx="674" cy="710" rx="70" ry="144" fill="#E9D7C0" transform="rotate(-23 674 710)"/>
+    <!-- scarf -->
+    <path d="M 348 616 Q 512 662 676 616 Q 657 688 512 700 Q 367 688 348 616 Z" fill="url(#scarf)"/>
+    <path d="M 582 671 Q 651 706 696 805 L 625 831 Q 587 740 552 698 Z" fill="#3A9FDF"/>
+    <!-- satchel -->
+    <path d="M 670 610 Q 587 724 585 866" fill="none" stroke="#8F6346" stroke-width="23" stroke-linecap="round"/>
+    <rect x="566" y="806" width="158" height="125" rx="28" fill="#9A6C4A"/>
+    <rect x="584" y="824" width="122" height="39" rx="16" fill="#B0805C"/>
+    <circle cx="645" cy="867" r="11" fill="#E2BF83"/>
+  </g>
+</svg>
