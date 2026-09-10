@@ -1,0 +1,37 @@
+name: Mino Cloud Render
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Prepare pilot composition
+        run: node scripts/cloud-render-mino.mjs
+      - name: Locate bundled Chrome
+        shell: bash
+        run: |
+          CHROME=$(find resources/chrome -type f -name chrome-headless-shell | head -n 1)
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
+          echo "PRODUCER_HEADLESS_SHELL_PATH=$CHROME" >> "$GITHUB_ENV"
+      - name: Render MP4
+        run: npx hyperframes render .mino-cloud -o mino-pilot.mp4 --quiet
+      - name: Upload MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: mino-pilot-video
+          path: mino-pilot.mp4
+          if-no-files-found: error
