@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
 import { dialog, BrowserWindow, app } from 'electron';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { showWorkingDir } from './showStore';
 import { nodeBin, nodeEnv, ffmpegPath, chromePath } from './binaries';
+import { buildMinoTimelineJs } from './minoMotion';
 
 export type RenderProgress =
   | { type: 'start'; outputPath: string }
@@ -31,6 +33,44 @@ function hyperframesEntry(): string {
   );
 }
 
+/**
+ * The base composition already owns lip-sync and camera motion. For the Mino
+ * pilot we append one extra deterministic GSAP layer immediately before
+ * HyperFrames renders the file. HyperFrames seeks the same paused timeline
+ * frame-by-frame, so these character actions stay in sync in the final MP4.
+ *
+ * We identify Mino by the data-character="mino" marker embedded in mino.svg,
+ * then recover the generated character instance id from ensureSvgId().
+ */
+async function injectMinoMotion(dir: string): Promise<void> {
+  const file = path.join(dir, 'index.html');
+  let html: string;
+  try {
+    html = await fs.readFile(file, 'utf8');
+  } catch {
+    return;
+  }
+
+  if (!html.includes('data-character="mino"')) return;
+  if (html.includes('data-mino-motion="1"')) return;
+
+  const idMatch = html.match(
+    /<svg\b[^>]*\bid="([^"]+)-rig"[^>]*\bdata-character="mino"|<svg\b[^>]*\bdata-character="mino"[^>]*\bid="([^"]+)-rig"/,
+  );
+  const characterId = idMatch?.[1] ?? idMatch?.[2];
+  if (!characterId) return;
+
+  const durationMatch = html.match(/data-duration="([0-9.]+)"/);
+  const duration = durationMatch ? Number(durationMatch[1]) : 70;
+  if (!Number.isFinite(duration) || duration <= 0) return;
+
+  const motion = buildMinoTimelineJs(characterId, duration);
+  const injected = `\n<script data-mino-motion="1">\n(function () {\n  var park = window.__agentPark;\n  if (!park || !park.tl) return;\n  var tl = park.tl;\n${motion}\n})();\n</script>\n`;
+
+  html = html.replace('</body>', `${injected}</body>`);
+  await fs.writeFile(file, html, 'utf8');
+}
+
 export async function renderShow(
   showId: string,
   win: BrowserWindow,
@@ -44,6 +84,10 @@ export async function renderShow(
   const outputPath = r.filePath;
   const dir = showWorkingDir(showId);
   const entry = hyperframesEntry();
+
+  // Add the Mino action layer after the composition has been built but before
+  // HyperFrames loads it. Non-Mino shows are left untouched.
+  await injectMinoMotion(dir);
 
   // Resolve bundled binaries up front so a missing dep fails before we
   // emit "start" — the render UI can stay in idle state.
