@@ -129,6 +129,73 @@ export async function createShow(name: string): Promise<Show> {
   return fresh;
 }
 
+/**
+ * Seed the first fairy-tale pilot from the bundled Mino + enchanted forest
+ * assets. The preset intentionally uses Mino as the temporary speaker for the
+ * narration so it works with the current Cartoon Studio dialogue model. The
+ * next architecture step will split voice-over narration from on-screen
+ * character speech so Mino only lip-syncs his own lines.
+ */
+export async function createMinoPilotShow(): Promise<Show> {
+  const assets = await window.api.defaultsList();
+  const mino = assets.find((a) => a.type === 'character' && a.id === 'character:mino');
+  const forest = assets.find(
+    (a) => a.type === 'scene' && a.id === 'scene:scene-enchanted-forest-night',
+  );
+
+  if (!mino) throw new Error('Bundled Mino character asset was not found.');
+  if (!forest) throw new Error('Bundled enchanted forest scene asset was not found.');
+
+  const fresh = emptyShow('Mino ve Uyuyan Yıldız');
+  const minoId = `mino-${cryptoRandomId()}`;
+  const line = (text: string) => ({
+    id: cryptoRandomId(),
+    speakerId: minoId,
+    text,
+    provider: 'elevenlabs',
+    model: 'elevenlabs/eleven_v3',
+    voice: 'XB0fDUnXU5powFXDhCwa', // Charlotte · warm female
+  });
+
+  const show: Show = {
+    ...fresh,
+    scene: {
+      id: forest.id,
+      name: forest.name,
+      svg: forest.svg,
+    },
+    characters: [
+      {
+        id: minoId,
+        name: 'Mino',
+        svg: mino.svg,
+        x: 0.5,
+        y: 0.94,
+        scale: 1.35,
+        z: 10,
+        provider: 'elevenlabs',
+        model: 'elevenlabs/eleven_v3',
+        voice: 'XB0fDUnXU5powFXDhCwa',
+      },
+    ],
+    dialogue: [
+      line('Bir varmış, bir yokmuş… Uzaklarda, yıldızların geceleri ağaçların arasına kadar indiği küçük bir ormanda, Mino adında meraklı bir tavşan yaşarmış.'),
+      line('Bir gece Mino, çimenlerin arasında titreyen minicik bir ışık görmüş. Yaklaştığında bunun gökyüzünden düşmüş küçük bir yıldız olduğunu anlamış.'),
+      line('Merak etme, demiş Mino. Seni evine götüreceğim.'),
+      line('Yıldızı avuçlarına alıp ormanın en yüksek tepesine doğru yürümeye başlamış.'),
+      line('Ama tepeye vardıklarında yıldızın ışığı iyice azalmış.'),
+      line('Mino gözlerini kapatmış ve bütün kalbiyle bir dilek tutmuş. Birden yıldız yeniden parlamaya başlamış!'),
+      line('Havaya yükselmiş, gökyüzündeki arkadaşlarının yanına dönmüş.'),
+      line('O geceden sonra gökyüzündeki en parlak yıldız, her gece Mino’nun küçük evini aydınlatmış. Çünkü gerçek dostluk, karanlıkta bile yolunu bulurmuş.'),
+    ],
+  };
+
+  await window.api.showSave(show);
+  await refreshShowList();
+  loadShow(show);
+  return show;
+}
+
 export function renameCurrentShow(name: string): void {
   const trimmed = name.trim();
   if (!trimmed) return;
@@ -151,4 +218,11 @@ export async function deleteShow(id: string): Promise<void> {
     await refreshShowList();
     loadShow(fresh);
   }
+}
+
+function cryptoRandomId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    Math.random().toString(36).slice(2) + Date.now().toString(36)
+  );
 }
