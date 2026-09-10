@@ -65,7 +65,8 @@ async function injectMinoMotion(dir: string): Promise<void> {
   if (!Number.isFinite(duration) || duration <= 0) return;
 
   const motion = buildMinoTimelineJs(characterId, duration);
-  const injected = `\n<script data-mino-motion="1">\n(function () {\n  var park = window.__agentPark;\n  if (!park || !park.tl) return;\n  var tl = park.tl;\n${motion}\n})();\n</script>\n`;
+  const slotId = `slot-${characterId}`;
+  const injected = `\n<script data-mino-motion="1">\n(function () {\n  var park = window.__agentPark;\n  if (!park || !park.tl) return;\n  var minoSvg = document.querySelector('svg[data-character="mino"]');\n  var minoSlotEl = minoSvg && minoSvg.closest('.slot');\n  if (minoSlotEl) minoSlotEl.id = ${JSON.stringify(slotId)};\n  var tl = park.tl;\n${motion}\n})();\n</script>\n`;
 
   html = html.replace('</body>', `${injected}</body>`);
   await fs.writeFile(file, html, 'utf8');
