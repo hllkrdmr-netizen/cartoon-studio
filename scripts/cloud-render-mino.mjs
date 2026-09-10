@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root=process.cwd(),out=path.join(root,'.mino-cloud'),audio=path.join(root,'pilot/audio');
+fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
+let mino=fs.readFileSync('resources/defaults/characters/mino.svg','utf8').replace('<svg','<svg id="mino-rig"');
+const bg=fs.readFileSync('resources/defaults/scenes/scene-magic-forest.svg','utf8');
+fs.copyFileSync('node_modules/gsap/dist/gsap.min.js',path.join(out,'gsap.min.js'));
+const seg=[
+['01-narrator.mp3',0,10.53],['02-narrator.mp3',10.88,8.86],['03-mino.mp3',20.09,1.67],['04-mino.mp3',22.11,2.82],['05-narrator.mp3',25.28,5.98],['06-narrator.mp3',31.61,3.37],['07-mino.mp3',35.33,2.74],['08-narrator.mp3',38.42,3.89],['09-mino.mp3',42.66,2.22],['10-narrator.mp3',45.23,7],['11-narrator.mp3',52.58,10.48]];
+for(const [f] of seg)fs.copyFileSync(path.join(audio,f),path.join(out,f));
+const aud=seg.map(([f,s,d],i)=>`<audio id="a${i}" data-start="${s}" data-duration="${d}" data-track-index="0" data-volume="1" src="${f}"></audio>`).join('');
+const bguri='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(bg);
+const html=`<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#07131f}.v{position:relative;width:1920px;height:1080px;overflow:hidden}.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#mino{position:absolute;left:50%;top:94%;width:430px;transform:translate(-50%,-100%);transform-origin:50% 100%;z-index:3}#mino svg{width:100%;height:auto}.star{position:absolute;left:52%;top:66%;font-size:92px;color:#fff6a8;text-shadow:0 0 18px #fff,0 0 42px #ffd966,0 0 80px #5cc8ff;opacity:0;z-index:4;transform:translate(-50%,-50%) scale(.6)}.mouth-group{opacity:0}.mouth-X{opacity:1}</style></head><body><div class="v" data-composition-id="mino-cloud-pilot" data-width="1920" data-height="1080" data-start="0" data-duration="67"><img class="bg" src="${bguri}"><div id="mino">${mino}</div><div id="star" class="star">★</div>${aud}<script src="gsap.min.js"></script><script>
+(function(){const tl=gsap.timeline({paused:true}),q=s=>'#mino-rig '+s;gsap.set([q('#eye-left'),q('#eye-right')],{transformOrigin:'50% 50%'});gsap.set(q('#head'),{transformOrigin:'50% 75%'});gsap.set([q('#arm-left'),q('#arm-right')],{transformOrigin:'50% 15%'});
+for(let t=3.4;t<63;t+=4.6)tl.to([q('#eye-left'),q('#eye-right')],{scaleY:.08,duration:.07},t).to([q('#eye-left'),q('#eye-right')],{scaleY:1,duration:.09},t+.08);
+for(let s=0;s<9;s++){let t=.4+s*.8,d=s%2?1:-1;tl.to('#mino',{x:-180+s*28,y:-10,rotation:d*1.2,duration:.24},t).to('#mino',{y:0,rotation:0,duration:.24},t+.24);tl.to(q('#foot-left'),{rotation:d*11,duration:.24},t);tl.to(q('#foot-right'),{rotation:-d*11,duration:.24},t);tl.to(q('#satchel'),{rotation:d*4,duration:.24},t)}
+tl.to(q('#head'),{rotation:-7,y:-10,duration:.8},7.3);tl.to('#star',{opacity:1,scale:1,duration:.6},11.5);tl.to(q('#head'),{rotation:8,y:12,duration:.5},12);tl.to('#mino',{y:40,scaleY:.94,duration:.7},16);tl.to(q('#head'),{rotation:10,y:22,duration:.7},16);
+function talk(a,b){for(let t=a,i=0;t<b-.1;t+=.14,i++){let sh=['A','C','E','B','D'][i%5];tl.set(q('.mouth-group'),{opacity:0},t);tl.set(q('.mouth-'+sh),{opacity:1},t)}tl.set(q('.mouth-group'),{opacity:0},b);tl.set(q('.mouth-X'),{opacity:1},b)}
+talk(20.09,21.76);tl.to('#mino',{y:0,scaleY:1,duration:.5},21.8);tl.to([q('#arm-left'),q('#arm-right')],{y:-42,duration:.5},21.9);tl.to('#star',{left:'50%',top:'61%',scale:.72,duration:.5},21.9);talk(22.11,24.93);
+for(let s=0;s<8;s++){let t=25.3+s*.7,d=s%2?1:-1;tl.to('#mino',{x:(s-3)*22,y:-9,rotation:d,duration:.22},t).to('#mino',{y:0,rotation:0,duration:.22},t+.22);tl.to(q('#satchel'),{rotation:d*5,duration:.22},t)}
+tl.to('#star',{opacity:.3,scale:.62,duration:1.2},31.7);tl.to(q('#head'),{y:22,rotation:3,duration:.8},32);tl.to(q('#ear-left'),{rotation:12,y:12,duration:.8},32);tl.to(q('#ear-right'),{rotation:-12,y:12,duration:.8},32);talk(35.33,38.07);
+tl.to([q('#eye-left'),q('#eye-right')],{scaleY:.08,duration:.2},38.5);tl.to([q('#arm-left'),q('#arm-right')],{y:-55,duration:.5},38.5);talk(42.66,44.88);tl.to('#star',{opacity:1,scale:1.15,duration:.5},44.85);tl.to([q('#eye-left'),q('#eye-right')],{scaleY:1,duration:.2},45.1);tl.to('#star',{top:'16%',left:'58%',scale:.65,duration:5.8},46);tl.to(q('#head'),{rotation:-10,y:-14,duration:1},46);
+tl.to(q('#arm-right'),{rotation:-44,y:-38,duration:.45},53);for(let w=0;w<6;w++)tl.to(q('#arm-right'),{rotation:w%2?-28:-60,duration:.28},53.5+w*.32);tl.to(q('#arm-right'),{rotation:0,y:0,duration:.5},55.6);tl.to('#star',{scale:.85,duration:1.1,yoyo:true,repeat:5},56);
+window.__timelines=window.__timelines||{};window.__timelines['mino-cloud-pilot']=tl;})();
+</script></div></body></html>`;fs.writeFileSync(path.join(out,'index.html'),html);console.log('Mino cloud composition ready');
