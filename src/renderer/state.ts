@@ -4,10 +4,6 @@ import { emptyShow, type Show, type ShowSummary } from '../shared/show';
 export type Screen = 'stage' | 'dialogue' | 'play';
 export const currentScreen = signal<Screen>('stage');
 
-// currentShow is always non-null so the three screens can read .scene /
-// .characters / .dialogue without nullchecks. The boot logic below seeds
-// a placeholder synchronously, then swaps to the real loaded show. Auto-
-// save is gated on `isBooted` so the placeholder never hits disk.
 export const currentShow = signal<Show>(emptyShow('Loading…'));
 export const allShows = signal<ShowSummary[]>([]);
 
@@ -17,13 +13,8 @@ export const selection = signal<{
 }>({ type: null, id: null });
 
 const isBooted = signal(false);
-
 const LAST_SHOW_KEY = 'cartoonstudio.lastShowId';
 
-// Selecting a character only makes sense on the Stage screen — the Delete-key
-// shortcut and Moveable resize handles are stage-scoped. Drop the selection
-// when leaving Stage so a stray Backspace on (say) Dialogue can't delete a
-// character that the user can't see.
 effect(() => {
   if (currentScreen.value !== 'stage' && selection.value.type === 'character') {
     selection.value = { type: null, id: null };
@@ -39,21 +30,16 @@ export function mutate(updater: (s: Show) => Show): void {
   });
 }
 
-// Swap to a show that already exists on disk. Persists the id so the
-// next launch reopens the same show.
 export function loadShow(show: Show): void {
   selection.value = { type: null, id: null };
   currentShow.value = show;
   try {
     localStorage.setItem(LAST_SHOW_KEY, show.id);
   } catch {
-    /* localStorage disabled — non-fatal, just won't restore on next launch */
+    /* localStorage disabled */
   }
 }
 
-// Auto-save: every change to currentShow triggers a debounced save IPC.
-// Gated on isBooted so the placeholder show during boot doesn't write a
-// phantom "Loading…" file to disk.
 effect(() => {
   const show = currentShow.value;
   if (!isBooted.value) return;
@@ -63,7 +49,7 @@ effect(() => {
       .showSave(show)
       .then(() => void refreshShowList())
       .catch(() => {
-        /* save failed — toast surfaced elsewhere if we wire one up later */
+        /* save failed */
       });
   }, SAVE_DEBOUNCE_MS);
 });
@@ -72,14 +58,10 @@ export async function refreshShowList(): Promise<void> {
   try {
     allShows.value = await window.api.showList();
   } catch {
-    /* leave the existing list in place on transient failure */
+    /* keep existing list */
   }
 }
 
-// Boot the multi-show system: refresh the list, restore the last-opened
-// show (or the most recently updated one, or freshly create one if the
-// user has none yet), then unblock auto-save. Idempotent — calling twice
-// is a no-op after the first successful boot.
 export async function bootShows(): Promise<void> {
   if (isBooted.value) return;
   await refreshShowList();
@@ -105,9 +87,6 @@ export async function bootShows(): Promise<void> {
     await refreshShowList();
   }
 
-  // Set state under the boot gate, then flip the gate. Order matters:
-  // flipping isBooted before setting currentShow would let the auto-save
-  // effect fire once with the placeholder.
   selection.value = { type: null, id: null };
   currentShow.value = show;
   try {
@@ -118,9 +97,6 @@ export async function bootShows(): Promise<void> {
   isBooted.value = true;
 }
 
-// CRUD helpers used by the show picker. Each mutates allShows after the
-// IPC roundtrip so the picker re-renders without an extra fetch.
-
 export async function createShow(name: string): Promise<Show> {
   const fresh = emptyShow(name.trim() || 'Untitled show');
   await window.api.showSave(fresh);
@@ -130,11 +106,10 @@ export async function createShow(name: string): Promise<Show> {
 }
 
 /**
- * Seed the first fairy-tale pilot from the bundled Mino + enchanted forest
- * assets. The preset intentionally uses Mino as the temporary speaker for the
- * narration so it works with the current Cartoon Studio dialogue model. The
- * next architecture step will split voice-over narration from on-screen
- * character speech so Mino only lip-syncs his own lines.
+ * Fairy-tale pilot preset.
+ * Narration and Mino dialogue are deliberately separated:
+ * - narrator lines use a hidden voice-over character with no mouth rig
+ * - Mino lines use Mino's visible rig, so only his own dialogue lip-syncs
  */
 export async function createMinoPilotShow(): Promise<Show> {
   const assets = await window.api.defaultsList();
@@ -148,14 +123,36 @@ export async function createMinoPilotShow(): Promise<Show> {
 
   const fresh = emptyShow('Mino ve Uyuyan Yıldız');
   const minoId = `mino-${cryptoRandomId()}`;
-  const line = (text: string) => ({
+  const narratorId = `narrator-${cryptoRandomId()}`;
+
+  const narratorVoice = {
+    provider: 'elevenlabs',
+    model: 'elevenlabs/eleven_v3',
+    voice: 'XB0fDUnXU5powFXDhCwa',
+  };
+  const minoVoice = {
+    provider: 'elevenlabs',
+    model: 'elevenlabs/eleven_v3',
+    voice: 'TX3LPaxmHKxFdv7VOQHJ',
+  };
+
+  const narrator = (text: string) => ({
+    id: cryptoRandomId(),
+    speakerId: narratorId,
+    text,
+    ...narratorVoice,
+  });
+  const minoLine = (text: string) => ({
     id: cryptoRandomId(),
     speakerId: minoId,
     text,
-    provider: 'elevenlabs',
-    model: 'elevenlabs/eleven_v3',
-    voice: 'XB0fDUnXU5powFXDhCwa', // Charlotte · warm female
+    ...minoVoice,
   });
+
+  const invisibleNarratorSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10" data-character="narrator">
+      <g opacity="0"><rect width="10" height="10" fill="transparent"/></g>
+    </svg>`;
 
   const show: Show = {
     ...fresh,
@@ -173,20 +170,31 @@ export async function createMinoPilotShow(): Promise<Show> {
         y: 0.94,
         scale: 1.35,
         z: 10,
-        provider: 'elevenlabs',
-        model: 'elevenlabs/eleven_v3',
-        voice: 'XB0fDUnXU5powFXDhCwa',
+        ...minoVoice,
+      },
+      {
+        id: narratorId,
+        name: 'Anlatıcı (Voice-over)',
+        svg: invisibleNarratorSvg,
+        x: 0.5,
+        y: 0.5,
+        scale: 0.1,
+        z: -100,
+        ...narratorVoice,
       },
     ],
     dialogue: [
-      line('Bir varmış, bir yokmuş… Uzaklarda, yıldızların geceleri ağaçların arasına kadar indiği küçük bir ormanda, Mino adında meraklı bir tavşan yaşarmış.'),
-      line('Bir gece Mino, çimenlerin arasında titreyen minicik bir ışık görmüş. Yaklaştığında bunun gökyüzünden düşmüş küçük bir yıldız olduğunu anlamış.'),
-      line('Merak etme, demiş Mino. Seni evine götüreceğim.'),
-      line('Yıldızı avuçlarına alıp ormanın en yüksek tepesine doğru yürümeye başlamış.'),
-      line('Ama tepeye vardıklarında yıldızın ışığı iyice azalmış.'),
-      line('Mino gözlerini kapatmış ve bütün kalbiyle bir dilek tutmuş. Birden yıldız yeniden parlamaya başlamış!'),
-      line('Havaya yükselmiş, gökyüzündeki arkadaşlarının yanına dönmüş.'),
-      line('O geceden sonra gökyüzündeki en parlak yıldız, her gece Mino’nun küçük evini aydınlatmış. Çünkü gerçek dostluk, karanlıkta bile yolunu bulurmuş.'),
+      narrator('Bir varmış, bir yokmuş… Uzaklarda, yıldızların geceleri ağaçların arasına kadar indiği küçük bir ormanda, Mino adında meraklı bir tavşan yaşarmış.'),
+      narrator('Bir gece Mino, çimenlerin arasında titreyen minicik bir ışık görmüş. Yaklaştığında bunun gökyüzünden düşmüş küçük bir yıldız olduğunu anlamış.'),
+      minoLine('Aa! Sen de kimsin böyle?'),
+      minoLine('Merak etme. Seni evine götüreceğim.'),
+      narrator('Mino, küçük yıldızı dikkatlice avuçlarına alıp ormanın en yüksek tepesine doğru yürümeye başlamış.'),
+      narrator('Tepeye vardıklarında yıldızın ışığı iyice azalmış.'),
+      minoLine('Işığın azalmış… Ama seni yalnız bırakmam.'),
+      narrator('Mino gözlerini kapatmış ve bütün kalbiyle bir dilek tutmuş.'),
+      minoLine('Hadi, yeniden parlamanı dileyelim.'),
+      narrator('Birden yıldız yeniden parlamaya başlamış. Havaya yükselmiş ve gökyüzündeki arkadaşlarının yanına dönmüş.'),
+      narrator('O geceden sonra gökyüzündeki en parlak yıldız, her gece Mino’nun küçük evini aydınlatmış. Çünkü gerçek dostluk, karanlıkta bile yolunu bulurmuş.'),
     ],
   };
 
@@ -200,15 +208,12 @@ export function renameCurrentShow(name: string): void {
   const trimmed = name.trim();
   if (!trimmed) return;
   mutate((s) => ({ ...s, name: trimmed }));
-  // refreshShowList is fired by the auto-save effect once it persists.
 }
 
 export async function deleteShow(id: string): Promise<void> {
   await window.api.showDelete(id);
   await refreshShowList();
   if (currentShow.value.id !== id) return;
-  // We just deleted the open show — pick the next available, or create
-  // a fresh "Untitled show" if the user deleted their only one.
   if (allShows.value.length > 0) {
     const next = await window.api.showLoad(allShows.value[0].id);
     loadShow(next);
