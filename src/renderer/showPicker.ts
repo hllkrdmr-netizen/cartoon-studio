@@ -4,6 +4,7 @@ import {
   currentShow,
   loadShow,
   createShow,
+  createMinoPilotShow,
   renameCurrentShow,
   deleteShow,
 } from './state';
@@ -39,8 +40,6 @@ export function mountShowPicker(host: HTMLElement): void {
   const chip = host.querySelector<HTMLButtonElement>('[data-toggle]')!;
   const nameEl = host.querySelector<HTMLSpanElement>('[data-name]')!;
 
-  // Panel lives on document.body so it can escape the header's stacking
-  // context. It's reused across opens — we just toggle hidden + reposition.
   const panel = document.createElement('div');
   panel.className = 'show-picker-panel';
   panel.hidden = true;
@@ -95,7 +94,6 @@ export function mountShowPicker(host: HTMLElement): void {
 
   chip.addEventListener('click', () => (isOpen ? close() : open()));
 
-  // Single delegated click handler — survives every renderPanel reset.
   panel.addEventListener('click', (ev) => {
     const target = ev.target;
     if (!(target instanceof Element)) return;
@@ -131,6 +129,10 @@ export function mountShowPicker(host: HTMLElement): void {
           submitLabel: 'Create',
         });
         if (result?.name) await createShow(result.name);
+      } else if (action === 'mino-pilot') {
+        close();
+        await createMinoPilotShow();
+        notify({ kind: 'info', message: 'Mino ve Uyuyan Yıldız pilotu hazır.' });
       } else if (action === 'rename') {
         close();
         const result = await openFormModal({
@@ -149,8 +151,6 @@ export function mountShowPicker(host: HTMLElement): void {
         if (result?.name) renameCurrentShow(result.name);
       } else if (action === 'delete') {
         close();
-        // window.confirm is disabled in Electron — see modal.ts. Use the
-        // form modal with a typed confirmation instead.
         const result = await openFormModal({
           title: `Delete "${cur.name}"?`,
           description:
@@ -188,6 +188,10 @@ export function mountShowPicker(host: HTMLElement): void {
         <button type="button" class="show-picker-new" data-action="new">
           <span class="show-picker-plus" aria-hidden="true">+</span>
           <span>New show</span>
+        </button>
+        <button type="button" class="show-picker-new" data-action="mino-pilot" title="Create the fairy-tale pilot with Mino, enchanted forest and prewritten Turkish narration">
+          <span class="show-picker-plus" aria-hidden="true">★</span>
+          <span>Mino pilotunu oluştur</span>
         </button>
       </div>
       <div class="show-picker-divider"></div>
